@@ -20,11 +20,19 @@ interface FontPickerValue {
   textDecoration?: string;
 }
 
+const ColorSwatch: FC<{ color: string; onClick: () => void }> = ({ color, onClick }) => (
+  <FillPreview fill={color} size="medium" onClick={onClick} />
+);
+
 const Panel: FC = () => {
   const [title, setTitle] = useState<string>('Community Feedback & Reviews');
   const [subtitle, setSubtitle] = useState<string>('Join the conversation and share your verified thoughts');
   const [primaryColor, setPrimaryColor] = useState<string>('#3899ec');
   const [starColor, setStarColor] = useState<string>('#ffb800');
+  const [titleColor, setTitleColor] = useState<string>('#0f172a');
+  const [subtitleColor, setSubtitleColor] = useState<string>('#64748b');
+  const [bodyColor, setBodyColor] = useState<string>('#334155');
+  const [buttonTextColor, setButtonTextColor] = useState<string>('#ffffff');
   const [enableRatings, setEnableRatings] = useState<boolean>(true);
   const [enableReplies, setEnableReplies] = useState<boolean>(true);
   const [enableReactions, setEnableReactions] = useState<boolean>(true);
@@ -32,12 +40,20 @@ const Panel: FC = () => {
   const [requireApproval, setRequireApproval] = useState<boolean>(false);
   const [maxChars, setMaxChars] = useState<string>('1000');
   const [font, setFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
+  const [titleFont, setTitleFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
+  const [subtitleFont, setSubtitleFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
+  const [bodyFont, setBodyFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
+  const [buttonFont, setButtonFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
 
   useEffect(() => {
     widget.getProp('title').then((v) => v && setTitle(v)).catch(console.error);
     widget.getProp('subtitle').then((v) => v && setSubtitle(v)).catch(console.error);
     widget.getProp('primary-color').then((v) => v && setPrimaryColor(v)).catch(console.error);
     widget.getProp('star-color').then((v) => v && setStarColor(v)).catch(console.error);
+    widget.getProp('title-color').then((v) => v && setTitleColor(v)).catch(console.error);
+    widget.getProp('subtitle-color').then((v) => v && setSubtitleColor(v)).catch(console.error);
+    widget.getProp('body-color').then((v) => v && setBodyColor(v)).catch(console.error);
+    widget.getProp('button-text-color').then((v) => v && setButtonTextColor(v)).catch(console.error);
     widget.getProp('enable-ratings').then((v) => setEnableRatings(v !== 'false')).catch(console.error);
     widget.getProp('enable-replies').then((v) => setEnableReplies(v !== 'false')).catch(console.error);
     widget.getProp('enable-reactions').then((v) => setEnableReactions(v !== 'false')).catch(console.error);
@@ -53,6 +69,21 @@ const Panel: FC = () => {
         console.error('Failed to read widget font:', error);
       }
     }).catch(console.error);
+    const loadFont = (propName: string, setValue: (value: FontPickerValue) => void) => {
+      widget.getProp(propName).then((v) => {
+        if (!v) return;
+        try {
+          const value = JSON.parse(v) as FontPickerValue;
+          if (value.font) setValue({ font: value.font, textDecoration: value.textDecoration || '' });
+        } catch (error) {
+          console.error(`Failed to read widget font (${propName}):`, error);
+        }
+      }).catch(console.error);
+    };
+    loadFont('title-font', setTitleFont);
+    loadFont('subtitle-font', setSubtitleFont);
+    loadFont('body-font', setBodyFont);
+    loadFont('button-font', setButtonFont);
   }, []);
 
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,6 +118,17 @@ const Panel: FC = () => {
       },
     });
   }, [font]);
+
+  const handleElementFontPick = useCallback((propName: string, value: FontPickerValue, onChange: (next: FontPickerValue) => void) => {
+    inputs.selectFont(value, {
+      onChange: (next) => {
+        if (!next) return;
+        const nextValue = { font: next.font, textDecoration: next.textDecoration || '' };
+        onChange(nextValue);
+        widget.setProp(propName, JSON.stringify(nextValue));
+      },
+    });
+  }, []);
 
   const handleToggleRatings = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.checked;
@@ -135,6 +177,65 @@ const Panel: FC = () => {
             <SidePanel.Field>
               <FormField label="Widget Title">
                 <Input value={title} onChange={handleTitleChange} />
+              </FormField>
+            </SidePanel.Field>
+
+            <Divider />
+            <Text size="small" weight="bold">Element Typography & Colors</Text>
+
+            <SidePanel.Field>
+              <FormField label="Title">
+                <Box direction="vertical" gap="8px">
+                  <Button priority="secondary" onClick={() => handleElementFontPick('title-font', titleFont, setTitleFont)} style={{ font: titleFont.font }}>
+                    {titleFont.font}
+                  </Button>
+                  <Box gap="8px" verticalAlign="middle">
+                    <ColorSwatch color={titleColor} onClick={() => handleColorPick('title-color', titleColor, setTitleColor)} />
+                    <Text size="small">{titleColor}</Text>
+                  </Box>
+                </Box>
+              </FormField>
+            </SidePanel.Field>
+
+            <SidePanel.Field>
+              <FormField label="Subtitle">
+                <Box direction="vertical" gap="8px">
+                  <Button priority="secondary" onClick={() => handleElementFontPick('subtitle-font', subtitleFont, setSubtitleFont)} style={{ font: subtitleFont.font }}>
+                    {subtitleFont.font}
+                  </Button>
+                  <Box gap="8px" verticalAlign="middle">
+                    <ColorSwatch color={subtitleColor} onClick={() => handleColorPick('subtitle-color', subtitleColor, setSubtitleColor)} />
+                    <Text size="small">{subtitleColor}</Text>
+                  </Box>
+                </Box>
+              </FormField>
+            </SidePanel.Field>
+
+            <SidePanel.Field>
+              <FormField label="Body Text">
+                <Box direction="vertical" gap="8px">
+                  <Button priority="secondary" onClick={() => handleElementFontPick('body-font', bodyFont, setBodyFont)} style={{ font: bodyFont.font }}>
+                    {bodyFont.font}
+                  </Button>
+                  <Box gap="8px" verticalAlign="middle">
+                    <ColorSwatch color={bodyColor} onClick={() => handleColorPick('body-color', bodyColor, setBodyColor)} />
+                    <Text size="small">{bodyColor}</Text>
+                  </Box>
+                </Box>
+              </FormField>
+            </SidePanel.Field>
+
+            <SidePanel.Field>
+              <FormField label="Button Text">
+                <Box direction="vertical" gap="8px">
+                  <Button priority="secondary" onClick={() => handleElementFontPick('button-font', buttonFont, setButtonFont)} style={{ font: buttonFont.font }}>
+                    {buttonFont.font}
+                  </Button>
+                  <Box gap="8px" verticalAlign="middle">
+                    <ColorSwatch color={buttonTextColor} onClick={() => handleColorPick('button-text-color', buttonTextColor, setButtonTextColor)} />
+                    <Text size="small">{buttonTextColor}</Text>
+                  </Box>
+                </Box>
               </FormField>
             </SidePanel.Field>
 
@@ -191,11 +292,7 @@ const Panel: FC = () => {
             <SidePanel.Field>
               <FormField label="Primary Accent Color">
                 <Box gap="8px" verticalAlign="middle">
-                  <FillPreview
-                    fill={primaryColor}
-                    size="medium"
-                    onClick={() => handleColorPick('primary-color', primaryColor, setPrimaryColor)}
-                  />
+                  <ColorSwatch color={primaryColor} onClick={() => handleColorPick('primary-color', primaryColor, setPrimaryColor)} />
                   <Text size="small">{primaryColor}</Text>
                 </Box>
               </FormField>
@@ -204,11 +301,7 @@ const Panel: FC = () => {
             <SidePanel.Field>
               <FormField label="Star Color">
                 <Box gap="8px" verticalAlign="middle">
-                  <FillPreview
-                    fill={starColor}
-                    size="medium"
-                    onClick={() => handleColorPick('star-color', starColor, setStarColor)}
-                  />
+                  <ColorSwatch color={starColor} onClick={() => handleColorPick('star-color', starColor, setStarColor)} />
                   <Text size="small">{starColor}</Text>
                 </Box>
               </FormField>
@@ -216,7 +309,7 @@ const Panel: FC = () => {
 
             <SidePanel.Field>
               <FormField label="Widget Font">
-                <Button priority="secondary" onClick={handleFontPick} style={{ fontFamily: font.font }}>
+                <Button priority="secondary" onClick={handleFontPick} style={{ font: font.font }}>
                   {font.font || 'Choose a font'}
                 </Button>
               </FormField>

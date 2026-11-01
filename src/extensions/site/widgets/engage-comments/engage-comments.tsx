@@ -12,12 +12,20 @@ interface WidgetProps {
   subtitle?: string;
   primaryColor?: string;
   starColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  bodyColor?: string;
+  buttonTextColor?: string;
   enableRatings?: string;
   enableReplies?: string;
   enableReactions?: string;
   allowGuest?: string;
   requireApproval?: string;
   font?: string;
+  titleFont?: string;
+  subtitleFont?: string;
+  bodyFont?: string;
+  buttonFont?: string;
   maxChars?: string;
 }
 
@@ -29,11 +37,19 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   subtitle = 'Join the conversation and share your verified thoughts',
   primaryColor = '#3899ec',
   starColor = '#ffb800',
+  titleColor = '#0f172a',
+  subtitleColor = '#64748b',
+  bodyColor = '#334155',
+  buttonTextColor = '#ffffff',
   enableRatings = 'true',
   enableReplies = 'true',
   enableReactions = 'true',
   allowGuest = 'true',
   font,
+  titleFont,
+  subtitleFont,
+  bodyFont,
+  buttonFont,
   maxChars = '1000',
 }) => {
   const isRatingsEnabled = enableRatings !== 'false';
@@ -41,12 +57,18 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const isReactionsEnabled = enableReactions !== 'false';
   const isGuestPostingEnabled = allowGuest !== 'false';
   const maxCharacterLimit = parseInt(maxChars, 10) || 1000;
-  let fontFamily: string | undefined;
-  try {
-    fontFamily = font ? (JSON.parse(font) as { font?: string }).font : undefined;
-  } catch {
-    fontFamily = undefined;
-  }
+  const parseFontFamily = (value?: string) => {
+    try {
+      return value ? (JSON.parse(value) as { font?: string }).font : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const fontFamily = parseFontFamily(font);
+  const titleFontFamily = parseFontFamily(titleFont) || fontFamily;
+  const subtitleFontFamily = parseFontFamily(subtitleFont) || fontFamily;
+  const bodyFontFamily = parseFontFamily(bodyFont) || fontFamily;
+  const buttonFontFamily = parseFontFamily(buttonFont) || fontFamily;
 
   const [comments, setComments] = useState<EngageComment[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -252,14 +274,19 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         {
           '--primary-color': primaryColor,
           '--star-color': starColor,
-          fontFamily,
+          '--title-color': titleColor,
+          '--subtitle-color': subtitleColor,
+          '--body-color': bodyColor,
+          '--button-text-color': buttonTextColor,
+          '--button-font': buttonFontFamily,
+          font: bodyFontFamily,
         } as React.CSSProperties
       }
     >
       {/* Header */}
       <div className={styles.header}>
-        <h2 className={styles.title}>{title}</h2>
-        {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+        <h2 className={styles.title} style={{ font: titleFontFamily }}>{title}</h2>
+        {subtitle && <p className={styles.subtitle} style={{ font: subtitleFontFamily }}>{subtitle}</p>}
         {isRatingsEnabled && totalReviews > 0 && (
           <div className={styles.ratingOverview}>
             <div className={styles.stars}>
@@ -528,12 +555,20 @@ export default reactToWebComponent(EngageCommentsWidget, React, ReactDOM as any,
     subtitle: 'string',
     primaryColor: 'string',
     starColor: 'string',
+    titleColor: 'string',
+    subtitleColor: 'string',
+    bodyColor: 'string',
+    buttonTextColor: 'string',
     enableRatings: 'string',
     enableReplies: 'string',
     enableReactions: 'string',
     allowGuest: 'string',
     requireApproval: 'string',
     font: 'string',
+    titleFont: 'string',
+    subtitleFont: 'string',
+    bodyFont: 'string',
+    buttonFont: 'string',
     maxChars: 'string',
   },
 });
