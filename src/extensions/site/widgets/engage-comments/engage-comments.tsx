@@ -92,11 +92,15 @@ const CollapsibleRichText = ({ content, className }: { content: string; classNam
   );
 };
 
-const getRichTextPlainTextForEditor = (html: string) => {
-  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, ' ').trim().length;
+const getRichTextPlainText = (html: string) => {
+  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, ' ');
   const container = document.createElement('div');
   container.innerHTML = html;
-  return container.textContent?.replace(/\u00a0/g, ' ').trim().length || 0;
+  return container.textContent?.replace(/\u00a0/g, ' ') || '';
+};
+
+const getRichTextPlainTextForEditor = (html: string) => {
+  return getRichTextPlainText(html).trim().length;
 };
 
 const Spinner = () => <LoaderCircle className={styles.spinner} size={16} aria-hidden="true" />;
@@ -264,6 +268,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [memberResolved, setMemberResolved] = useState<boolean>(false);
   const [contentText, setContentText] = useState<string>('');
   const [contentLength, setContentLength] = useState<number>(0);
+  const [blockedWords, setBlockedWords] = useState<string[]>([]);
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -311,6 +316,27 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [replySubmitting, setReplySubmitting] = useState<boolean>(false);
   const [repliesMap, setRepliesMap] = useState<Record<string, EngageComment[]>>({});
   const [showRepliesMap, setShowRepliesMap] = useState<Record<string, boolean>>({});
+
+  const findBlockedWords = useCallback((content: string) => {
+    const plainText = getRichTextPlainText(content).toLowerCase();
+    return blockedWords.filter((word, index) => (
+      word && plainText.includes(word.toLowerCase()) &&
+      blockedWords.findIndex((candidate) => candidate.toLowerCase() === word.toLowerCase()) === index
+    ));
+  }, [blockedWords]);
+
+  const blockedCommentWords = findBlockedWords(contentText);
+  const blockedReplyWords = findBlockedWords(replyText);
+
+  useEffect(() => {
+    httpClient.fetchWithAuth(apiUrl(`/api/widgets/${encodeURIComponent(widgetKey)}/public-config`))
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data.blockedWords)) setBlockedWords(data.blockedWords);
+      })
+      .catch((error) => console.error('Failed to load moderation settings:', error));
+  }, [widgetKey]);
 
   const fetchComments = useCallback(async (append = false) => {
     if (append && (!hasMoreRef.current || loadingMoreRef.current)) return;
@@ -397,7 +423,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isGuestPostingEnabled) return;
-    if (!contentLength) return;
+    if (!contentLength || blockedCommentWords.length > 0) return;
 
     try {
       setSubmitting(true);
@@ -572,7 +598,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   };
 
   const handleSubmitReply = async (commentId: string) => {
-    if (!getRichTextPlainTextForEditor(replyText)) return;
+    if (!getRichTextPlainTextForEditor(replyText) || blockedReplyWords.length > 0) return;
     const parentId = replyingToId || commentId;
 
     try {
@@ -824,7 +850,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           )}
         </div>
 
-        <div className={styles.richTextEditor}>
+        <div className={`${styles.richTextEditor} ${blockedCommentWords.length > 0 ? styles.richTextEditorBlocked : ''}`}>
           <ReactQuill
             ref={composerQuillRef}
             theme="snow"
@@ -839,6 +865,11 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
             modules={composerModules}
           />
         </div>
+        {blockedCommentWords.length > 0 && (
+          <div className={styles.blockedTermMessage} role="alert">
+            Blocked terms: {blockedCommentWords.map((word) => <strong key={word}>{word}</strong>)}
+          </div>
+        )}
 
         <div className={styles.composerActions}>
           <span className={styles.charCount}>
@@ -1030,7 +1061,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     />
                   )}
                   <div
-                    className={`${styles.richTextEditor} ${!replyEditorReady ? styles.replyEditorLoading : ''}`}
+                    className={`${styles.richTextEditor} ${!replyEditorReady ? styles.replyEditorLoading : ''} ${blockedReplyWords.length > 0 ? styles.richTextEditorBlocked : ''}`}
                     aria-busy={!replyEditorReady}
                   >
                     {!replyEditorReady && (
@@ -1048,6 +1079,11 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       modules={replyModules}
                     />
                   </div>
+                  {blockedReplyWords.length > 0 && (
+                    <div className={styles.blockedTermMessage} role="alert">
+                      Blocked terms: {blockedReplyWords.map((word) => <strong key={word}>{word}</strong>)}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button
                       type="button"
@@ -1062,7 +1098,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     <button
                       type="button"
                       className={styles.submitBtn}
-                      disabled={replySubmitting || !getRichTextPlainTextForEditor(replyText)}
+                      disabled={replySubmitting || !getRichTextPlainTextForEditor(replyText) || blockedReplyWords.length > 0}
                       onClick={() => handleSubmitReply(comment._id)}
                     >
                       {replySubmitting && <Spinner />}
@@ -1083,15 +1119,15 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         )}
       </div>
 
-      {!loading && comments.length > 0 && (
+      {!loading && comments.length > 0 && (loadingMore || hasMore) && (
         <div
           ref={loadMoreSentinelRef}
           className={styles.loadMoreSentinel}
           role="status"
           aria-live="polite"
-          aria-label={loadingMore ? 'Loading more comments' : hasMore ? 'More comments will load automatically' : 'All comments loaded'}
+          aria-label={loadingMore ? 'Loading more comments' : 'More comments will load automatically'}
         >
-          {loadingMore ? <><Spinner /><span>Loading more comments…</span></> : hasMore ? 'Scroll to load more comments' : 'All comments loaded'}
+          {loadingMore ? <><Spinner /><span>Loading more comments…</span></> : 'Scroll to load more comments'}
         </div>
       )}
 

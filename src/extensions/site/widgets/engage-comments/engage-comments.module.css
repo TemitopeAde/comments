@@ -413,6 +413,21 @@
   font-weight: 600;
 }
 
+.blockedTermMessage {
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.blockedTermMessage strong + strong::before {
+  content: ', ';
+}
+
+.richTextEditorBlocked :global(.ql-toolbar.ql-snow),
+.richTextEditorBlocked :global(.ql-container.ql-snow) {
+  border-color: #dc2626;
+}
+
 .nestedReply {
   padding-top: 8px;
 }

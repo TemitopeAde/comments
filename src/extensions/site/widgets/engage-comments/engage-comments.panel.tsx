@@ -78,6 +78,8 @@ const Panel: FC = () => {
   const [buttonFont, setButtonFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
   const [trialStatus, setTrialStatus] = useState<TrialStatus>({ available: false });
   const [editorToolbar, setEditorToolbar] = useState<EditorToolbarOptions>(DEFAULT_EDITOR_TOOLBAR);
+  const [blockedWords, setBlockedWords] = useState<string[]>([]);
+  const [blockedWordInput, setBlockedWordInput] = useState<string>('');
 
   useEffect(() => {
     httpClient.fetchWithAuth(apiUrl('/api/dashboard/trial-status'))
@@ -108,6 +110,14 @@ const Panel: FC = () => {
         console.error('Failed to read editor toolbar settings:', error);
       }
     }).catch(console.error);
+    httpClient.fetchWithAuth(apiUrl('/api/dashboard/widgets'))
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json();
+        const settings = data.items?.find((item: { widgetKey?: string }) => item.widgetKey === 'engage-comments')?.settings;
+        if (Array.isArray(settings?.blockedWords)) setBlockedWords(settings.blockedWords);
+      })
+      .catch(console.error);
     widget.getProp('font').then((v) => {
       if (!v) return;
       try {
@@ -219,6 +229,41 @@ const Panel: FC = () => {
     setEditorToolbar(next);
     widget.setProp('editor-toolbar', JSON.stringify(next));
   }, [editorToolbar]);
+
+  const saveBlockedWords = useCallback(async (nextWords: string[]) => {
+    const response = await httpClient.fetchWithAuth(apiUrl('/api/dashboard/widgets'), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetKey: 'engage-comments', settings: { blockedWords: nextWords } }),
+    });
+    if (!response.ok) throw new Error('Unable to save blocked words.');
+  }, []);
+
+  const handleAddBlockedWord = useCallback(async () => {
+    const word = blockedWordInput.trim();
+    if (!word || blockedWords.some((existing) => existing.toLowerCase() === word.toLowerCase())) return;
+
+    const nextWords = [...blockedWords, word];
+    setBlockedWords(nextWords);
+    setBlockedWordInput('');
+    try {
+      await saveBlockedWords(nextWords);
+    } catch (error) {
+      setBlockedWords(blockedWords);
+      console.error(error);
+    }
+  }, [blockedWordInput, blockedWords, saveBlockedWords]);
+
+  const handleRemoveBlockedWord = useCallback(async (wordToRemove: string) => {
+    const nextWords = blockedWords.filter((word) => word !== wordToRemove);
+    setBlockedWords(nextWords);
+    try {
+      await saveBlockedWords(nextWords);
+    } catch (error) {
+      setBlockedWords(blockedWords);
+      console.error(error);
+    }
+  }, [blockedWords, saveBlockedWords]);
 
   return (
     <WixDesignSystemProvider>
@@ -416,6 +461,38 @@ const Panel: FC = () => {
                         </Box>
                         <ToggleSwitch checked={requireApproval} onChange={handleToggleApproval} />
                       </Box>
+
+                      <SidePanel.Field>
+                        <FormField label="Blocked words or phrases">
+                          <Box direction="vertical" gap="8px">
+                            <Text size="tiny" secondary>Submissions containing a match will be blocked.</Text>
+                            <Box gap="8px" verticalAlign="middle">
+                              <Input
+                                value={blockedWordInput}
+                                onChange={(event) => setBlockedWordInput(event.target.value)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    void handleAddBlockedWord();
+                                  }
+                                }}
+                                placeholder="Add a word or phrase"
+                              />
+                              <Button priority="secondary" onClick={() => void handleAddBlockedWord()}>
+                                Add
+                              </Button>
+                            </Box>
+                            {blockedWords.map((word) => (
+                              <Box key={word} align="space-between" verticalAlign="middle">
+                                <Text size="small">{word}</Text>
+                                <Button priority="tertiary" onClick={() => void handleRemoveBlockedWord(word)}>
+                                  Remove
+                                </Button>
+                              </Box>
+                            ))}
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
                     </Box>
                   ),

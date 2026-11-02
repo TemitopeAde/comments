@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getWidgetConfig } from '../../../../lib/services/widgetsService';
+import { getWidgetConfig, INTERNAL_BLOCKED_WORDS } from '../../../../lib/services/widgetsService';
 
 export const GET: APIRoute = async ({ params }) => {
   try {
@@ -30,6 +30,7 @@ export const GET: APIRoute = async ({ params }) => {
       pageSize: widget.settings.pageSize,
       showAvatars: widget.settings.showAvatars,
       showFooterBranding: widget.settings.showFooterBranding,
+      blockedWords: [...INTERNAL_BLOCKED_WORDS, ...widget.settings.blockedWords],
     };
 
     return Response.json(publicConfig);

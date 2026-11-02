@@ -8,7 +8,7 @@ import {
   elevatedRemove,
   memoryStore,
 } from './dataAccess';
-import { getWidgetConfig } from './widgetsService';
+import { getWidgetConfig, INTERNAL_BLOCKED_WORDS } from './widgetsService';
 
 const isDevelopmentEnvironment = import.meta.env.WIX_ENVIRONMENT === 'development';
 
@@ -201,7 +201,7 @@ export async function createComment(data: {
 
   // Check blocked words
   const contentLower = data.contentText.toLowerCase();
-  for (const word of settings.blockedWords) {
+  for (const word of [...INTERNAL_BLOCKED_WORDS, ...settings.blockedWords]) {
     if (word && contentLower.includes(word.toLowerCase())) {
       throw new Error('Your comment contains blocked terms.');
     }
@@ -406,6 +406,7 @@ export async function moderateComment(
   }
 
   const now = new Date().toISOString();
+  let replyId: string | undefined;
 
   if (action === 'approve') {
     comment.status = 'published';
@@ -424,7 +425,7 @@ export async function moderateComment(
     comment.isPinned = false;
   } else if (action === 'owner-reply' && replyText) {
     // Create an official reply by the site owner
-    await createComment({
+    const createdReply = await createComment({
       widgetKey: comment.widgetKey,
       targetType: comment.targetType,
       targetReference: comment.targetReference,
@@ -433,6 +434,7 @@ export async function moderateComment(
       authorType: 'owner',
       contentText: replyText,
     });
+    replyId = createdReply._id;
   } else if (action === 'owner-reply') {
     throw new Error('Reply text is required');
   }
@@ -451,11 +453,13 @@ export async function moderateComment(
     createdAt: now,
   });
 
-  return comment;
+  return { ...comment, replyId };
 }
 
-export async function getDashboardOverview() {
-  const all = (await getStoredComments()).filter((c) => c.status !== 'deleted');
+export async function getDashboardOverview(widgetKey?: string) {
+  const all = (await getStoredComments()).filter((c) =>
+    c.status !== 'deleted' && (!widgetKey || c.widgetKey === widgetKey),
+  );
   const published = all.filter((c) => c.status === 'published');
   const pending = all.filter((c) => c.status === 'pending');
   const reviews = published.filter((c) => typeof c.rating === 'number' && c.rating > 0);

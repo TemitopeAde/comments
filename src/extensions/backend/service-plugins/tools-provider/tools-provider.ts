@@ -11,7 +11,8 @@ toolsProvider.provideHandlers({
 
     switch (methodName) {
       case 'get-comments-summary': {
-        const stats = await getDashboardOverview();
+        const widgetKey = typeof payload?.['widgetKey'] === 'string' ? payload['widgetKey'] : undefined;
+        const stats = await getDashboardOverview(widgetKey);
         return {
           response: {
             totalComments: stats.totalComments,
@@ -77,11 +78,12 @@ toolsProvider.provideHandlers({
           throw new Error('Non-empty replyText is required');
         }
 
-        await moderateComment(commentId, 'owner-reply', replyText, 'wix-ai-assistant');
+        const updated = await moderateComment(commentId, 'owner-reply', replyText, 'wix-ai-assistant');
         return {
           response: {
             success: true,
             parentCommentId: commentId,
+            replyId: updated.replyId,
             message: `Official owner reply posted to comment ${commentId}.`,
           },
         };
