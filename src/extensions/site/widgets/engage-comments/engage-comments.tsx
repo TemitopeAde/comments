@@ -614,27 +614,37 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         }),
       });
 
-      if (res.ok) {
-        setReplyText('');
-        setReplyAuthorName('');
-        setShowReplyNameField(false);
-        setOpenReplyFormId(null);
-        setReplyingToId(null);
-        setReplyEditorReady(false);
-        // Refresh replies for the comment or reply being answered.
-        const repliesRes = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${parentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
-        if (repliesRes.ok) {
-          const data = await repliesRes.json();
-          setRepliesMap((prev) => ({ ...prev, [parentId]: data.items || [] }));
-          setShowRepliesMap((prev) => ({ ...prev, [commentId]: true }));
+      if (!res.ok) {
+        let message = 'Unable to post your reply. Please try again.';
+        try {
+          const data = await res.json();
+          if (typeof data?.error === 'string' && data.error) message = data.error;
+        } catch {
+          // Use the fallback message when the API response is not JSON.
         }
-        // Increment replyCount locally
-        setComments((prev) =>
-          prev.map((c) => (c._id === commentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c))
-        );
+        throw new Error(message);
       }
+
+      setReplyText('');
+      setReplyAuthorName('');
+      setShowReplyNameField(false);
+      setOpenReplyFormId(null);
+      setReplyingToId(null);
+      setReplyEditorReady(false);
+      // Refresh replies for the comment or reply being answered.
+      const repliesRes = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${parentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
+      if (repliesRes.ok) {
+        const data = await repliesRes.json();
+        setRepliesMap((prev) => ({ ...prev, [parentId]: data.items || [] }));
+        setShowRepliesMap((prev) => ({ ...prev, [commentId]: true }));
+      }
+      // Increment replyCount locally
+      setComments((prev) =>
+        prev.map((c) => (c._id === commentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c))
+      );
     } catch (e) {
       console.error(e);
+      toast.error(e instanceof Error ? e.message : 'Unable to post your reply. Please try again.');
     } finally {
       setReplySubmitting(false);
     }
@@ -756,7 +766,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       window.clearTimeout(focusTimer);
       window.clearTimeout(readyTimer);
     };
-  }, [openReplyFormId]);
+  }, [openReplyFormId, replyingToId]);
 
   return (
     <div

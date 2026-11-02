@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpClient } from '@wix/essentials';
+import { Toaster, toast } from 'sonner';
 import {
   Page,
   Card,
@@ -17,6 +18,8 @@ import {
   Divider,
   Search,
   EmptyState,
+  ToggleSwitch,
+  Loader,
 } from '@wix/design-system';
 import {
   Check,
@@ -34,6 +37,42 @@ import type { EngageComment, WidgetSettings } from '../../../../lib/types';
 const { fetchWithAuth } = httpClient;
 const API_ORIGIN = new URL(import.meta.url).origin;
 const apiUrl = (path: string) => new URL(path, API_ORIGIN).toString();
+
+const sanitizeRichText = (html: string) => {
+  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, ' ');
+
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  template.content.querySelectorAll('script,style,iframe,object,embed,form').forEach((node) => node.remove());
+  template.content.querySelectorAll('*').forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      if (attribute.name.toLowerCase().startsWith('on')) element.removeAttribute(attribute.name);
+      if (attribute.name === 'href' && !/^(https?:|mailto:)/i.test(attribute.value)) {
+        element.removeAttribute(attribute.name);
+      }
+      if (attribute.name === 'src' && !/^(https?:|data:image\/)/i.test(attribute.value)) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  });
+  template.content.querySelectorAll('img').forEach((image) => {
+    image.setAttribute('alt', image.getAttribute('alt') || 'Comment image');
+    image.setAttribute('style', 'display:block;max-width:100%;max-height:320px;width:auto;height:auto;object-fit:contain;margin:8px 0;');
+  });
+  return template.innerHTML;
+};
+
+const RichTextContent = ({ content, size = 'small' }: { content: string; size?: 'small' | 'medium' }) => (
+  <div
+    style={{
+      fontSize: size === 'medium' ? 14 : 13,
+      lineHeight: 1.5,
+      overflowWrap: 'anywhere',
+      color: '#334155',
+    }}
+    dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }}
+  />
+);
 
 interface OverviewStats {
   totalComments: number;
@@ -89,7 +128,8 @@ function DashboardApp() {
     blockedWords: ['spam', 'viagra', 'casino', 'scam'],
   });
 
-  const [blockedWordsInput, setBlockedWordsInput] = useState<string>('spam, viagra, casino, scam');
+  const [blockedWordsInput, setBlockedWordsInput] = useState<string>('');
+  const [moderationSaveState, setModerationSaveState] = useState<'idle' | 'saving'>('idle');
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -128,6 +168,7 @@ function DashboardApp() {
       if (res.ok) {
         const data = await res.json();
         setWidgetSettings((prev) => ({ ...prev, ...data }));
+        if (Array.isArray(data.blockedWords)) setWidgetSettings((prev) => ({ ...prev, blockedWords: data.blockedWords }));
       }
     } catch (e) {
       console.error(e);
@@ -164,31 +205,74 @@ function DashboardApp() {
       if (res.ok) {
         fetchComments();
         fetchOverview();
+        const actionLabel = action === 'owner-reply'
+          ? 'Owner reply sent'
+          : action === 'approve'
+            ? 'Comment approved'
+            : action === 'reject'
+              ? 'Comment rejected'
+              : action === 'pin'
+                ? 'Comment pinned'
+                : action === 'unpin'
+                  ? 'Comment unpinned'
+                  : 'Comment deleted';
+        toast.success(`${actionLabel}.`);
         if (action === 'owner-reply') {
           setReplyOpenMap((prev) => ({ ...prev, [commentId]: false }));
           setReplyTextMap((prev) => ({ ...prev, [commentId]: '' }));
         }
+      } else {
+        toast.error('Unable to update this comment. Please try again.');
       }
     } catch (e) {
       console.error(e);
+      toast.error('Unable to update this comment. Please try again.');
     }
   };
 
   const handleSaveModerationRules = async () => {
+    if (moderationSaveState === 'saving') return;
+    setModerationSaveState('saving');
     try {
-      const words = blockedWordsInput.split(',').map((w) => w.trim()).filter(Boolean);
+      const words = widgetSettings.blockedWords;
       const res = await fetchWithAuth(apiUrl('/api/dashboard/widgets'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ widgetKey: 'engage-comments', settings: { blockedWords: words } }),
+        body: JSON.stringify({
+          widgetKey: 'engage-comments',
+          settings: {
+            blockedWords: words,
+            requireApproval: widgetSettings.requireApproval,
+          },
+        }),
       });
 
       if (res.ok) {
         setWidgetSettings((prev) => ({ ...prev, blockedWords: words }));
+        toast.success('Moderation rules saved.');
+      } else {
+        toast.error('Could not save moderation rules. Please try again.');
       }
     } catch (e) {
       console.error(e);
+      toast.error('Could not save moderation rules. Please try again.');
+    } finally {
+      setModerationSaveState('idle');
     }
+  };
+
+  const handleAddBlockedWord = () => {
+    const word = blockedWordsInput.trim();
+    if (!word || widgetSettings.blockedWords.some((existing) => existing.toLowerCase() === word.toLowerCase())) return;
+    setWidgetSettings((prev) => ({ ...prev, blockedWords: [...prev.blockedWords, word] }));
+    setBlockedWordsInput('');
+  };
+
+  const handleRemoveBlockedWord = (wordToRemove: string) => {
+    setWidgetSettings((prev) => ({
+      ...prev,
+      blockedWords: prev.blockedWords.filter((word) => word !== wordToRemove),
+    }));
   };
 
   const handleExportCsv = async () => {
@@ -204,13 +288,16 @@ function DashboardApp() {
       link.download = 'engage-comments-export.csv';
       link.click();
       URL.revokeObjectURL(blobUrl);
+      toast.success('Comments exported successfully.');
     } catch (e) {
       console.error(e);
+      toast.error('Unable to export comments. Please try again.');
     }
   };
 
   return (
     <BusinessManagerTheme>
+      <Toaster position="top-center" richColors />
       <Page>
         <Page.Header
           title="Engage Comments, Reviews & Testimonials"
@@ -235,7 +322,6 @@ function DashboardApp() {
               items={[
                 { id: 'overview', title: 'Overview' },
                 { id: 'comments', title: `Comments & Reviews (${comments.length})` },
-                { id: 'widgets', title: 'Widget Preview' },
                 { id: 'moderation', title: 'Moderation Rules' },
                 { id: 'plans', title: 'Plans & Usage' },
                 { id: 'help', title: 'Help & Quickstart' },
@@ -325,7 +411,7 @@ function DashboardApp() {
                                 {item.status.toUpperCase()}
                               </Badge>
                             </Box>
-                            <Text size="small">{item.contentText}</Text>
+                            <RichTextContent content={item.contentText} />
                             <Box align="space-between" verticalAlign="middle">
                               <Text size="tiny" secondary>{new Date(item._createdDate || '').toLocaleString()}</Text>
                               <Box gap="8px">
@@ -417,7 +503,7 @@ function DashboardApp() {
                             </Badge>
                           </Box>
 
-                          <Text size="medium">{comment.contentText}</Text>
+                          <RichTextContent content={comment.contentText} size="medium" />
 
                           <Box align="space-between" verticalAlign="middle">
                             <Box gap="12px" verticalAlign="middle">
@@ -491,99 +577,50 @@ function DashboardApp() {
               </Card>
             )}
 
-            {/* TAB 3: WIDGET PREVIEW */}
-            {activeTab === 'widgets' && (
-              <Box direction="vertical" gap="16px">
-                <SectionHelper appearance="standard">
-                  Select the Engage Comments widget in the Wix Editor to edit its settings in the widget panel.
-                </SectionHelper>
-
-                {/* Live Preview */}
-                <Box direction="vertical" gap="16px">
-                  <Card>
-                    <Card.Header title="Live Widget Preview" subtitle="Real-time rendering of your site widget" />
-                    <Card.Content>
-                      <Box
-                        direction="vertical"
-                        gap="12px"
-                        padding="20px"
-                        style={{
-                          border: '2px solid #e2e8f0',
-                          borderRadius: '12px',
-                          backgroundColor: widgetSettings.backgroundColor,
-                        }}
-                      >
-                        <Heading size="small">{widgetSettings.title}</Heading>
-                        <Text size="tiny" secondary>{widgetSettings.subtitle}</Text>
-
-                        <Box direction="vertical" gap="8px" padding="12px" style={{ backgroundColor: '#f8fafc', borderRadius: '8px' }}>
-                          {widgetSettings.enableRatings && (
-                            <Box gap="4px" verticalAlign="middle">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <StarFilled key={star} style={{ color: widgetSettings.ratingStarColor, width: 18, height: 18 }} />
-                              ))}
-                              <Text size="tiny" secondary style={{ marginLeft: 6 }}>Click to rate</Text>
-                            </Box>
-                          )}
-                          <Input placeholder="Write your feedback..." readOnly />
-                          <Box align="space-between" verticalAlign="middle">
-                            <Text size="tiny" secondary>0 / {widgetSettings.maxCharacters} characters</Text>
-                            <Button size="small" style={{ backgroundColor: widgetSettings.primaryColor, color: '#fff' }}>
-                              Post Comment
-                            </Button>
-                          </Box>
-                        </Box>
-
-                        <Box direction="vertical" gap="8px" style={{ marginTop: '12px' }}>
-                          {comments.filter((comment) => comment.status === 'published' && !comment.parentCommentId).slice(0, widgetSettings.pageSize).map((comment) => (
-                            <Box key={comment._id} direction="vertical" gap="4px" padding="10px" style={{ border: '1px solid #f1f5f9', borderRadius: '8px' }}>
-                              <Box align="space-between">
-                                <Text weight="bold" size="small">{comment.authorDisplayName}</Text>
-                                {comment.rating && <Text size="small">{comment.rating} / 5</Text>}
-                              </Box>
-                              <Text size="small">{comment.contentText}</Text>
-                              <Box gap="8px" verticalAlign="middle">
-                                {widgetSettings.enableReactions && (
-                                  <Text size="tiny" secondary>Likes: {comment.reactionCount || 0}</Text>
-                                )}
-                                {widgetSettings.enableReplies && (
-                                  <Text size="tiny" secondary>Replies: {comment.replyCount || 0}</Text>
-                                )}
-                              </Box>
-                            </Box>
-                          ))}
-                          {comments.filter((comment) => comment.status === 'published' && !comment.parentCommentId).length === 0 && (
-                            <EmptyState title="No published comments yet" subtitle="Published comments will appear in this preview." />
-                          )}
-                        </Box>
-
-                        {widgetSettings.showFooterBranding && (
-                          <Text size="tiny" secondary style={{ textAlign: 'center', marginTop: 12 }}>
-                            Powered by Engage Comments
-                          </Text>
-                        )}
-                      </Box>
-                    </Card.Content>
-                  </Card>
-                </Box>
-              </Box>
-            )}
-
-            {/* TAB 4: MODERATION RULES */}
+            {/* TAB 3: MODERATION RULES */}
             {activeTab === 'moderation' && (
               <Card>
                 <Card.Header title="Spam & Automated Moderation Rules" subtitle="Keep your community safe and prevent offensive content." />
                 <Card.Content>
                   <Box direction="vertical" gap="16px">
-                    <FormField label="Blocked Terms (Comma Separated)">
-                      <Input
-                        value={blockedWordsInput}
-                        onChange={(e) => setBlockedWordsInput(e.target.value)}
-                      />
+                    <FormField label="Blocked Terms">
+                      <Box direction="vertical" gap="8px">
+                        <Box gap="8px" verticalAlign="middle">
+                          <Input
+                            value={blockedWordsInput}
+                            placeholder="Add a blocked word or phrase"
+                            onChange={(e) => setBlockedWordsInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddBlockedWord();
+                              }
+                            }}
+                          />
+                          <Button priority="secondary" onClick={handleAddBlockedWord}>Add</Button>
+                        </Box>
+                        {widgetSettings.blockedWords.map((word) => (
+                          <Box key={word} align="space-between" verticalAlign="middle">
+                            <Text size="small">{word}</Text>
+                            <Button priority="tertiary" onClick={() => handleRemoveBlockedWord(word)}>Remove</Button>
+                          </Box>
+                        ))}
+                      </Box>
                     </FormField>
                     <Text size="tiny" secondary>
                       Any submissions containing these words will be rejected automatically by the server.
                     </Text>
+
+                    <Box align="space-between" verticalAlign="middle">
+                      <Box direction="vertical">
+                        <Text weight="bold">Approve comments before publishing</Text>
+                        <Text size="tiny" secondary>New comments and replies remain pending until an admin approves them.</Text>
+                      </Box>
+                      <ToggleSwitch
+                        checked={widgetSettings.requireApproval}
+                        onChange={(event) => setWidgetSettings((prev) => ({ ...prev, requireApproval: event.target.checked }))}
+                      />
+                    </Box>
 
                     <Divider />
 
@@ -603,8 +640,13 @@ function DashboardApp() {
                       <Badge skin="success">Enforced</Badge>
                     </Box>
 
-                    <Button priority="primary" onClick={handleSaveModerationRules}>
-                      Save Moderation Rules
+                    <Button
+                      priority="primary"
+                      onClick={handleSaveModerationRules}
+                      disabled={moderationSaveState === 'saving'}
+                      prefixIcon={moderationSaveState === 'saving' ? <Loader size="tiny" color="white" /> : undefined}
+                    >
+                      {moderationSaveState === 'saving' ? 'Saving…' : 'Save Moderation Rules'}
                     </Button>
                   </Box>
                 </Card.Content>
