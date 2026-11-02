@@ -30,6 +30,28 @@ interface TrialStatus {
   upgradeUrl?: string;
 }
 
+type EditorToolbarOptions = {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  orderedList: boolean;
+  bulletList: boolean;
+  link: boolean;
+  image: boolean;
+  clean: boolean;
+};
+
+const DEFAULT_EDITOR_TOOLBAR: EditorToolbarOptions = {
+  bold: true,
+  italic: true,
+  underline: true,
+  orderedList: true,
+  bulletList: true,
+  link: true,
+  image: true,
+  clean: true,
+};
+
 const ColorSwatch: FC<{ color: string; onClick: () => void }> = ({ color, onClick }) => (
   <FillPreview fill={color} size="small" onClick={onClick} />
 );
@@ -37,6 +59,7 @@ const ColorSwatch: FC<{ color: string; onClick: () => void }> = ({ color, onClic
 const Panel: FC = () => {
   const [title, setTitle] = useState<string>('Comments & Feedback');
   const [subtitle, setSubtitle] = useState<string>('Join the conversation and share your verified thoughts');
+  const [editorPlaceholder, setEditorPlaceholder] = useState<string>('Share your comments, questions, or reviews...');
   const [primaryColor, setPrimaryColor] = useState<string>('#3899ec');
   const [starColor, setStarColor] = useState<string>('#ffb800');
   const [titleColor, setTitleColor] = useState<string>('#0f172a');
@@ -54,6 +77,7 @@ const Panel: FC = () => {
   const [bodyFont, setBodyFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
   const [buttonFont, setButtonFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
   const [trialStatus, setTrialStatus] = useState<TrialStatus>({ available: false });
+  const [editorToolbar, setEditorToolbar] = useState<EditorToolbarOptions>(DEFAULT_EDITOR_TOOLBAR);
 
   useEffect(() => {
     httpClient.fetchWithAuth(apiUrl('/api/dashboard/trial-status'))
@@ -64,6 +88,7 @@ const Panel: FC = () => {
 
     widget.getProp('title').then((v) => v && setTitle(v)).catch(console.error);
     widget.getProp('subtitle').then((v) => v && setSubtitle(v)).catch(console.error);
+    widget.getProp('editor-placeholder').then((v) => v && setEditorPlaceholder(v)).catch(console.error);
     widget.getProp('primary-color').then((v) => v && setPrimaryColor(v)).catch(console.error);
     widget.getProp('star-color').then((v) => v && setStarColor(v)).catch(console.error);
     widget.getProp('title-color').then((v) => v && setTitleColor(v)).catch(console.error);
@@ -75,6 +100,14 @@ const Panel: FC = () => {
     widget.getProp('enable-reactions').then((v) => setEnableReactions(v !== 'false')).catch(console.error);
     widget.getProp('allow-guest').then((v) => setAllowGuest(v !== 'false')).catch(console.error);
     widget.getProp('require-approval').then((v) => setRequireApproval(v === 'true')).catch(console.error);
+    widget.getProp('editor-toolbar').then((v) => {
+      if (!v) return;
+      try {
+        setEditorToolbar({ ...DEFAULT_EDITOR_TOOLBAR, ...JSON.parse(v) });
+      } catch (error) {
+        console.error('Failed to read editor toolbar settings:', error);
+      }
+    }).catch(console.error);
     widget.getProp('font').then((v) => {
       if (!v) return;
       try {
@@ -111,6 +144,12 @@ const Panel: FC = () => {
     const val = e.target.value;
     setSubtitle(val);
     widget.setProp('subtitle', val);
+  }, []);
+
+  const handleEditorPlaceholderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setEditorPlaceholder(val);
+    widget.setProp('editor-placeholder', val);
   }, []);
 
   const handleColorPick = useCallback((propName: string, value: string, onChange: (next: string) => void) => {
@@ -175,6 +214,12 @@ const Panel: FC = () => {
     widget.setProp('require-approval', val ? 'true' : 'false');
   }, []);
 
+  const handleToolbarToggle = useCallback((key: keyof EditorToolbarOptions) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = { ...editorToolbar, [key]: e.target.checked };
+    setEditorToolbar(next);
+    widget.setProp('editor-toolbar', JSON.stringify(next));
+  }, [editorToolbar]);
+
   return (
     <WixDesignSystemProvider>
       <SidePanel width="320" height="100vh">
@@ -183,19 +228,6 @@ const Panel: FC = () => {
         />
         <SidePanel.Content noPadding stretchVertically>
           <Box width="100%" padding="16px">
-            {trialStatus.available && trialStatus.upgradeUrl && (
-              <SectionHelper appearance="standard" title="Try Pro free">
-                Start your free trial to unlock advanced widget features.
-                <Box marginTop="8px">
-                  <Button
-                    priority="primary"
-                    onClick={() => window.open(trialStatus.upgradeUrl, '_blank', 'noopener,noreferrer')}
-                  >
-                    Start free trial
-                  </Button>
-                </Box>
-              </SectionHelper>
-            )}
             <Accordion
               size="small"
               skin="light"
@@ -216,6 +248,15 @@ const Panel: FC = () => {
                       <SidePanel.Field>
                         <FormField label="Subtitle">
                           <Input value={subtitle} onChange={handleSubtitleChange} />
+                        </FormField>
+                      </SidePanel.Field>
+                      <SidePanel.Field>
+                        <FormField label="Comment editor placeholder">
+                          <Input
+                            value={editorPlaceholder}
+                            onChange={handleEditorPlaceholderChange}
+                            placeholder="Share your comments, questions, or reviews..."
+                          />
                         </FormField>
                       </SidePanel.Field>
                     </Box>
@@ -310,6 +351,29 @@ const Panel: FC = () => {
                   ),
                 },
                 {
+                  title: 'Editor Toolbar',
+                  children: (
+                    <Box direction="vertical" gap="16px" padding="16px 0">
+                      <Text size="tiny" secondary>Choose the formatting tools available when writing or editing comments and replies.</Text>
+                      {([
+                        ['bold', 'Bold'],
+                        ['italic', 'Italic'],
+                        ['underline', 'Underline'],
+                        ['orderedList', 'Numbered list'],
+                        ['bulletList', 'Bulleted list'],
+                        ['link', 'Links'],
+                        ['image', 'Images'],
+                        ['clean', 'Clear formatting'],
+                      ] as Array<[keyof EditorToolbarOptions, string]>).map(([key, label]) => (
+                        <Box key={key} align="space-between" verticalAlign="middle">
+                          <Text size="small">{label}</Text>
+                          <ToggleSwitch checked={editorToolbar[key]} onChange={handleToolbarToggle(key)} />
+                        </Box>
+                      ))}
+                    </Box>
+                  ),
+                },
+                {
                   title: 'Behavior',
                   children: (
                     <Box direction="vertical" gap="20px" padding="16px 0">
@@ -361,9 +425,23 @@ const Panel: FC = () => {
           </Box>
         </SidePanel.Content>
         <SidePanel.Footer noPadding>
-          <SectionHelper fullWidth appearance="success" border="topBottom">
-            Changes apply in real-time to your site preview and published pages.
-          </SectionHelper>
+          {trialStatus.available && trialStatus.upgradeUrl ? (
+            <SectionHelper fullWidth appearance="standard" title="Try Pro free" border="topBottom">
+              Start your free trial to unlock advanced widget features.
+              <Box marginTop="8px">
+                <Button
+                  priority="primary"
+                  onClick={() => window.open(trialStatus.upgradeUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  Start free trial
+                </Button>
+              </Box>
+            </SectionHelper>
+          ) : (
+            <SectionHelper fullWidth appearance="success" border="topBottom">
+              Changes apply in real-time to your site preview and published pages.
+            </SectionHelper>
+          )}
         </SidePanel.Footer>
       </SidePanel>
     </WixDesignSystemProvider>

@@ -9,4 +9,9 @@ import commentsThread from './extensions/site/components/comments-thread/comment
 
 import testimonialsGrid from './extensions/site/components/testimonials-grid/testimonials-grid.extension.ts';
 
-export default app().use(myPage).use(dataCollections).use(engageComments).use(commentsThread).use(testimonialsGrid);
+export default app()
+    .use(myPage)
+    .use(dataCollections)
+    .use(engageComments)
+    .use(commentsThread)
+    // .use(testimonialsGrid);

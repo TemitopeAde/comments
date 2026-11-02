@@ -6,6 +6,7 @@
   border-radius: 16px;
   padding: clamp(16px, 3vw, 28px);
   box-sizing: border-box;
+  min-width: 0;
   width: 100%;
   max-width: none;
   margin: 0 auto;
@@ -72,6 +73,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .inputField {
@@ -128,6 +130,28 @@
   background: #ffffff;
   border-radius: 6px;
   overflow: hidden;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.replyEditorLoading {
+  min-height: 120px;
+}
+
+.editorLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #64748b;
+  font-size: 13px;
+  pointer-events: none;
 }
 
 .richTextEditor :global(.ql-toolbar.ql-snow),
@@ -136,7 +160,11 @@
 }
 
 .richTextEditor :global(.ql-toolbar) {
-  display: block !important;
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 42px;
   padding: 8px;
   background: #ffffff;
@@ -144,7 +172,8 @@
 
 .richTextEditor :global(.ql-toolbar .ql-formats) {
   display: inline-block;
-  margin-right: 12px;
+  margin-right: 8px;
+  margin-bottom: 2px;
 }
 
 .richTextEditor :global(.ql-toolbar button),
@@ -155,6 +184,9 @@
 }
 
 .richTextEditor :global(.ql-container) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   min-height: 120px;
   font-family: inherit;
   font-size: 14px;
@@ -163,6 +195,11 @@
 .richTextEditor :global(.ql-editor.ql-blank::before) {
   color: #94a3b8;
   font-style: normal;
+}
+
+.richTextEditor :global(.ql-editor) {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .richTextEditor :global(.ql-editor img) {
@@ -370,6 +407,22 @@
   color: #334155;
 }
 
+.replyingToLabel {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nestedReply {
+  padding-top: 8px;
+}
+
+.nestedReplies {
+  margin: 8px 0 0 16px;
+  padding-left: 12px;
+  border-left: 2px solid #e2e8f0;
+}
+
 .commentBody :global(p) {
   margin: 0 0 8px;
 }
@@ -476,6 +529,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .bannerSuccess {

@@ -164,7 +164,31 @@ interface WidgetProps {
   subtitleFont?: string;
   bodyFont?: string;
   buttonFont?: string;
+  editorToolbar?: string;
+  editorPlaceholder?: string;
 }
+
+type EditorToolbarOptions = {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  orderedList: boolean;
+  bulletList: boolean;
+  link: boolean;
+  image: boolean;
+  clean: boolean;
+};
+
+const DEFAULT_EDITOR_TOOLBAR: EditorToolbarOptions = {
+  bold: true,
+  italic: true,
+  underline: true,
+  orderedList: true,
+  bulletList: true,
+  link: true,
+  image: true,
+  clean: true,
+};
 
 const EngageCommentsWidget: FC<WidgetProps> = ({
   widgetKey = 'engage-comments',
@@ -187,6 +211,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   subtitleFont,
   bodyFont,
   buttonFont,
+  editorToolbar,
+  editorPlaceholder = 'Share your comments, questions, or reviews...',
 }) => {
   const isRatingsEnabled = enableRatings !== 'false';
   const isRepliesEnabled = enableReplies !== 'false';
@@ -209,6 +235,13 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const subtitleFontFamily = parseFontFamily(subtitleFont) || fontFamily;
   const bodyFontFamily = parseFontFamily(bodyFont) || fontFamily;
   const buttonFontFamily = parseFontFamily(buttonFont) || fontFamily;
+  const toolbarOptions = useMemo<EditorToolbarOptions>(() => {
+    try {
+      return { ...DEFAULT_EDITOR_TOOLBAR, ...(editorToolbar ? JSON.parse(editorToolbar) : {}) };
+    } catch {
+      return DEFAULT_EDITOR_TOOLBAR;
+    }
+  }, [editorToolbar]);
 
   const [comments, setComments] = useState<EngageComment[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -228,6 +261,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [authorName, setAuthorName] = useState<string>('');
   const [showNameField, setShowNameField] = useState<boolean>(false);
   const [memberName, setMemberName] = useState<string | null>(null);
+  const [memberResolved, setMemberResolved] = useState<boolean>(false);
   const [contentText, setContentText] = useState<string>('');
   const [contentLength, setContentLength] = useState<number>(0);
   const [rating, setRating] = useState<number>(5);
@@ -244,6 +278,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
   const composerQuillRef = useRef<ReactQuill | null>(null);
+  const replyQuillRef = useRef<ReactQuill | null>(null);
   const editingQuillRef = useRef<ReactQuill | null>(null);
 
   // Actor session id for reactions & guests
@@ -268,8 +303,11 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
   // Replies state
   const [openReplyFormId, setOpenReplyFormId] = useState<string | null>(null);
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyAuthorName, setReplyAuthorName] = useState<string>('');
+  const [showReplyNameField, setShowReplyNameField] = useState<boolean>(false);
   const [replyText, setReplyText] = useState<string>('');
+  const [replyEditorReady, setReplyEditorReady] = useState<boolean>(false);
   const [replySubmitting, setReplySubmitting] = useState<boolean>(false);
   const [repliesMap, setRepliesMap] = useState<Record<string, EngageComment[]>>({});
   const [showRepliesMap, setShowRepliesMap] = useState<Record<string, boolean>>({});
@@ -320,7 +358,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         setTotalCount(data.totalCount || 0);
         setAverageRating(data.averageRating || 0);
         setTotalReviews(data.totalReviews || 0);
-        setMemberName(data.currentMember?.displayName || null);
+        setMemberName(data.currentMember?.displayName?.trim() || null);
+        setMemberResolved(true);
         hasMoreRef.current = Boolean(data.hasMore);
         setHasMore(Boolean(data.hasMore));
       }
@@ -332,6 +371,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         setLoadingMore(false);
       } else {
         setLoading(false);
+        setMemberResolved(true);
       }
     }
   }, [actorKey, widgetKey, targetType, targetReference, sort]);
@@ -518,30 +558,48 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
     }
   };
 
+  const loadReplies = async (commentId: string) => {
+    if (repliesMap[commentId]) return;
+    try {
+      const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
+      if (res.ok) {
+        const data = await res.json();
+        setRepliesMap((prev) => ({ ...prev, [commentId]: data.items || [] }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSubmitReply = async (commentId: string) => {
-    if (!replyText.trim()) return;
+    if (!getRichTextPlainTextForEditor(replyText)) return;
+    const parentId = replyingToId || commentId;
 
     try {
       setReplySubmitting(true);
-      const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/replies`), {
+      const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${parentId}/replies`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           widgetKey,
-          authorDisplayName: replyAuthorName.trim() || 'Guest',
-          contentText: replyText.trim(),
+          authorDisplayName: memberName || replyAuthorName.trim() || 'Guest Visitor',
+          contentText: replyText,
           clientSessionId: actorKey,
         }),
       });
 
       if (res.ok) {
         setReplyText('');
+        setReplyAuthorName('');
+        setShowReplyNameField(false);
         setOpenReplyFormId(null);
-        // Refresh replies for this comment
-        const repliesRes = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
+        setReplyingToId(null);
+        setReplyEditorReady(false);
+        // Refresh replies for the comment or reply being answered.
+        const repliesRes = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${parentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
         if (repliesRes.ok) {
           const data = await repliesRes.json();
-          setRepliesMap((prev) => ({ ...prev, [commentId]: data.items || [] }));
+          setRepliesMap((prev) => ({ ...prev, [parentId]: data.items || [] }));
           setShowRepliesMap((prev) => ({ ...prev, [commentId]: true }));
         }
         // Increment replyCount locally
@@ -555,6 +613,41 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       setReplySubmitting(false);
     }
   };
+
+  const renderReply = (reply: EngageComment, rootId: string): React.ReactNode => (
+    <div key={reply._id} className={styles.nestedReply} style={{ fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <span style={{ fontWeight: 600 }}>{reply.authorDisplayName}</span>
+        {reply.authorType === 'owner' && (
+          <span className={`${styles.badge} ${styles.badgeOwner}`}>Site Owner</span>
+        )}
+        <span style={{ fontSize: 11, color: '#94a3b8' }}>
+          {new Date(reply._createdDate || '').toLocaleDateString()}
+        </span>
+      </div>
+      <CollapsibleRichText content={reply.contentText} className={styles.replyBody} />
+      {isRepliesEnabled && (
+        <button
+          type="button"
+          className={styles.actionBtn}
+          onClick={() => {
+            setReplyingToId(reply._id);
+            setOpenReplyFormId(rootId);
+            setReplyEditorReady(false);
+            void loadReplies(reply._id);
+          }}
+          aria-label={`Reply to ${reply.authorDisplayName}`}
+        >
+          <MessageCircle size={14} strokeWidth={2} />
+        </button>
+      )}
+      {repliesMap[reply._id]?.length > 0 && (
+        <div className={styles.nestedReplies}>
+          {repliesMap[reply._id].map((childReply) => renderReply(childReply, rootId))}
+        </div>
+      )}
+    </div>
+  );
 
   const getInitials = (name: string) => {
     if (!name) return 'U';
@@ -587,11 +680,20 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
     input.click();
   }, []);
 
-  const toolbarContainer = useMemo(() => [
-    ['bold', 'italic', 'underline'],
-    [{ list: 'ordered' }, { list: 'bullet' }],
-    ['link', 'image', 'clean'],
-  ], []);
+  const toolbarContainer = useMemo(() => {
+    const formatting = ['bold', 'italic', 'underline'].filter((tool) => toolbarOptions[tool as keyof EditorToolbarOptions]);
+    const lists = [
+      toolbarOptions.orderedList ? { list: 'ordered' } : null,
+      toolbarOptions.bulletList ? { list: 'bullet' } : null,
+    ].filter(Boolean);
+    const inserts = [
+      toolbarOptions.link ? 'link' : null,
+      toolbarOptions.image ? 'image' : null,
+      toolbarOptions.clean ? 'clean' : null,
+    ].filter(Boolean);
+
+    return [formatting, lists, inserts].filter((group) => group.length > 0);
+  }, [toolbarOptions]);
 
   // Keep the module configuration stable. ReactQuill tears down and rebuilds
   // the editor when this object changes, which can make the toolbar disappear
@@ -609,6 +711,26 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       handlers: { image: () => handleImageUpload(editingQuillRef.current) },
     },
   }), [handleImageUpload, toolbarContainer]);
+
+  const replyModules = useMemo(() => ({
+    toolbar: {
+      container: toolbarContainer,
+      handlers: { image: () => handleImageUpload(replyQuillRef.current) },
+    },
+  }), [handleImageUpload, toolbarContainer]);
+
+  useEffect(() => {
+    if (!openReplyFormId) return;
+    setReplyEditorReady(false);
+    const focusTimer = window.setTimeout(() => replyQuillRef.current?.focus(), 0);
+    const readyTimer = window.setTimeout(() => {
+      if (replyQuillRef.current) setReplyEditorReady(true);
+    }, 0);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.clearTimeout(readyTimer);
+    };
+  }, [openReplyFormId]);
 
   return (
     <div
@@ -653,7 +775,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       {/* Composer */}
       <form className={styles.composer} onSubmit={handleSubmitComment}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {!memberName && !showNameField && (
+          {memberResolved && !memberName && !showNameField && (
             <button
               type="button"
               className={styles.nameToggle}
@@ -666,7 +788,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
             </button>
           )}
 
-          {!memberName && showNameField && (
+          {memberResolved && !memberName && showNameField && (
             <input
               id="comment-name"
               type="text"
@@ -712,7 +834,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               setContentText(value);
               setContentLength(plainText.length);
             }}
-            placeholder="Share your comments, questions, or reviews..."
+            placeholder={editorPlaceholder}
             readOnly={!isGuestPostingEnabled}
             modules={composerModules}
           />
@@ -849,10 +971,15 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       type="button"
                       className={styles.actionBtn}
                       onClick={() =>
-                        setOpenReplyFormId(openReplyFormId === comment._id ? null : comment._id)
+                        (() => {
+                          const isOpen = openReplyFormId === comment._id && replyingToId === comment._id;
+                          setOpenReplyFormId(isOpen ? null : comment._id);
+                          setReplyingToId(isOpen ? null : comment._id);
+                          setReplyEditorReady(false);
+                        })()
                       }
-                      aria-label={openReplyFormId === comment._id ? 'Close reply form' : 'Reply to comment'}
-                      title={openReplyFormId === comment._id ? 'Close reply form' : 'Reply to comment'}
+                      aria-label={openReplyFormId === comment._id && replyingToId === comment._id ? 'Close reply form' : 'Reply to comment'}
+                      title={openReplyFormId === comment._id && replyingToId === comment._id ? 'Close reply form' : 'Reply to comment'}
                     >
                       <MessageCircle size={16} strokeWidth={2} />
                     </button>
@@ -877,32 +1004,65 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               {/* Inline Reply Form */}
               {openReplyFormId === comment._id && (
                 <div className={styles.replyComposer}>
-                  <input
-                    type="text"
-                    className={styles.inputField}
-                    placeholder="Your name"
-                    value={replyAuthorName}
-                    onChange={(e) => setReplyAuthorName(e.target.value)}
-                  />
-                  <textarea
-                    className={styles.inputField}
-                    placeholder="Write a reply..."
-                    rows={2}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                  />
+                  {replyingToId !== comment._id && (
+                    <div className={styles.replyingToLabel}>Replying to a reply</div>
+                  )}
+                  {memberResolved && !memberName && !showReplyNameField && (
+                    <button
+                      type="button"
+                      className={styles.nameToggle}
+                      onClick={() => setShowReplyNameField(true)}
+                      aria-expanded="false"
+                      aria-controls="reply-name"
+                    >
+                      Add a name <span>(optional)</span>
+                    </button>
+                  )}
+
+                  {memberResolved && !memberName && showReplyNameField && (
+                    <input
+                      id="reply-name"
+                      type="text"
+                      className={styles.inputField}
+                      placeholder="Your name or nickname"
+                      value={replyAuthorName}
+                      onChange={(e) => setReplyAuthorName(e.target.value)}
+                    />
+                  )}
+                  <div
+                    className={`${styles.richTextEditor} ${!replyEditorReady ? styles.replyEditorLoading : ''}`}
+                    aria-busy={!replyEditorReady}
+                  >
+                    {!replyEditorReady && (
+                      <div className={styles.editorLoadingOverlay} role="status">
+                        <Spinner />
+                        <span>Opening editor…</span>
+                      </div>
+                    )}
+                    <ReactQuill
+                      ref={replyQuillRef}
+                      theme="snow"
+                      value={replyText}
+                      onChange={setReplyText}
+                      placeholder="Write a reply..."
+                      modules={replyModules}
+                    />
+                  </div>
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button
                       type="button"
                       className={styles.actionBtn}
-                      onClick={() => setOpenReplyFormId(null)}
+                      onClick={() => {
+                        setOpenReplyFormId(null);
+                        setReplyingToId(null);
+                      }}
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
                       className={styles.submitBtn}
-                      disabled={replySubmitting || !replyText.trim()}
+                      disabled={replySubmitting || !getRichTextPlainTextForEditor(replyText)}
                       onClick={() => handleSubmitReply(comment._id)}
                     >
                       {replySubmitting && <Spinner />}
@@ -915,20 +1075,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               {/* Threaded Replies */}
               {showRepliesMap[comment._id] && repliesMap[comment._id] && (
                 <div className={styles.replyThread}>
-                  {repliesMap[comment._id].map((reply) => (
-                    <div key={reply._id} style={{ fontSize: 13 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{ fontWeight: 600 }}>{reply.authorDisplayName}</span>
-                        {reply.authorType === 'owner' && (
-                          <span className={`${styles.badge} ${styles.badgeOwner}`}>Site Owner</span>
-                        )}
-                        <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                          {new Date(reply._createdDate || '').toLocaleDateString()}
-                        </span>
-                      </div>
-                      <CollapsibleRichText content={reply.contentText} className={styles.replyBody} />
-                    </div>
-                  ))}
+                  {repliesMap[comment._id].map((reply) => renderReply(reply, comment._id))}
                 </div>
               )}
             </div>
@@ -1081,5 +1228,7 @@ export default reactToWebComponent(EngageCommentsWidget, React, ReactDOM as any,
     subtitleFont: 'string',
     bodyFont: 'string',
     buttonFont: 'string',
+    editorToolbar: 'string',
+    editorPlaceholder: 'string',
   },
 });
