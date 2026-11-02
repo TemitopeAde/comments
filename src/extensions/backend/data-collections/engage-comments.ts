@@ -15,6 +15,7 @@ export default {
     { key: 'threadRootId', displayName: 'Thread Root ID', type: 'TEXT' },
     { key: 'authorType', displayName: 'Author Type', type: 'TEXT' },
     { key: 'authorMemberId', displayName: 'Author Member ID', type: 'TEXT' },
+    { key: 'authorMemberEmail', displayName: 'Author Member Email', type: 'TEXT' },
     { key: 'authorDisplayName', displayName: 'Author Display Name', type: 'TEXT' },
     { key: 'authorAvatarReference', displayName: 'Author Avatar', type: 'TEXT' },
     { key: 'contentText', displayName: 'Comment Content', type: 'TEXT' },
@@ -30,7 +31,7 @@ export default {
   ],
   dataPermissions: {
     itemInsert: 'PRIVILEGED',
-    itemRead: 'ANYONE',
+    itemRead: 'PRIVILEGED',
     itemRemove: 'PRIVILEGED',
     itemUpdate: 'PRIVILEGED',
   },

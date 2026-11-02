@@ -1,15 +1,16 @@
 import type { APIRoute } from 'astro';
-import { createComment, getComment, getReplies } from '../../../../lib/services/commentsService';
+import { createComment, getComment, getReplies, toPublicComment } from '../../../../lib/services/commentsService';
 import { createReplySchema } from '../../../../lib/validation/schemas';
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, request }) => {
   try {
     const { id } = params;
     if (!id) {
       return Response.json({ error: 'Comment ID is required' }, { status: 400 });
     }
 
-    const replies = await getReplies(id);
+    const clientSessionId = new URL(request.url).searchParams.get('clientSessionId');
+    const replies = await getReplies(id, clientSessionId);
     return Response.json({ items: replies, totalCount: replies.length });
   } catch (err: any) {
     return Response.json({ error: err.message || 'Failed to fetch replies' }, { status: 500 });
@@ -38,9 +39,10 @@ export const POST: APIRoute = async ({ params, request }) => {
       parentCommentId: id,
       authorDisplayName: validated.authorDisplayName,
       contentText: validated.contentText,
+      clientSessionId: validated.clientSessionId,
     });
 
-    return Response.json({ success: true, item: reply }, { status: 201 });
+    return Response.json({ success: true, item: toPublicComment(reply) }, { status: 201 });
   } catch (err: any) {
     return Response.json(
       { error: err.errors ? err.errors.map((e: any) => e.message).join(', ') : err.message },

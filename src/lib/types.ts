@@ -14,6 +14,9 @@ export interface EngageComment {
   threadRootId?: string | null;
   authorType: AuthorType;
   authorMemberId?: string | null;
+  authorMemberEmail?: string | null;
+  authorSessionId?: string | null;
+  authorAvatarUrl?: string | null;
   authorDisplayName: string;
   authorAvatarReference?: string | null;
   contentText: string;
@@ -26,6 +29,7 @@ export interface EngageComment {
   moderatedAt?: string | Date | null;
   moderatedBy?: string | null;
   schemaVersion: number;
+  canEdit?: boolean;
 }
 
 export interface WidgetSettings {
@@ -95,6 +99,8 @@ export interface EngageUsageStats {
   periodKey: string;
   commentsCreated: number;
   commentsLimit: number;
-  planName: 'Free' | 'Pro';
+  submissionsLimit?: number;
+  publishedCommentsLimit?: number;
+  planName: 'Basic' | 'Pro' | 'Business';
   isPro: boolean;
 }

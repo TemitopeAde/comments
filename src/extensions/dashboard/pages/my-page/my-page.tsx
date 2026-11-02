@@ -32,6 +32,8 @@ import { BusinessManagerTheme } from '../../BusinessManagerTheme';
 import type { EngageComment, WidgetSettings } from '../../../../lib/types';
 
 const { fetchWithAuth } = httpClient;
+const API_ORIGIN = new URL(import.meta.url).origin;
+const apiUrl = (path: string) => new URL(path, API_ORIGIN).toString();
 
 interface OverviewStats {
   totalComments: number;
@@ -48,6 +50,11 @@ interface OverviewStats {
   };
 }
 
+interface TrialStatus {
+  available: boolean;
+  upgradeUrl?: string;
+}
+
 function DashboardApp() {
   const [activeTab, setActiveTab] = useState<string>('overview');
   const [stats, setStats] = useState<OverviewStats | null>(null);
@@ -57,14 +64,15 @@ function DashboardApp() {
   const [loading, setLoading] = useState<boolean>(true);
   const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
   const [replyOpenMap, setReplyOpenMap] = useState<Record<string, boolean>>({});
+  const [trialStatus, setTrialStatus] = useState<TrialStatus>({ available: false });
 
   // Widget settings state
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>({
-    title: 'Community Feedback & Reviews',
+    title: 'Comments & Feedback',
     subtitle: 'Join the conversation and share your verified thoughts',
     enableComments: true,
     enableReplies: true,
-    enableRatings: true,
+    enableRatings: false,
     enableReactions: true,
     allowGuestPosting: true,
     requireApproval: false,
@@ -85,7 +93,7 @@ function DashboardApp() {
 
   const fetchOverview = useCallback(async () => {
     try {
-      const res = await fetchWithAuth('/api/dashboard/overview');
+      const res = await fetchWithAuth(apiUrl('/api/dashboard/overview'));
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -102,7 +110,7 @@ function DashboardApp() {
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (searchQuery) params.append('search', searchQuery);
 
-      const res = await fetchWithAuth(`/api/dashboard/comments?${params.toString()}`);
+      const res = await fetchWithAuth(apiUrl(`/api/dashboard/comments?${params.toString()}`));
       if (res.ok) {
         const data = await res.json();
         setComments(data.items || []);
@@ -116,10 +124,21 @@ function DashboardApp() {
 
   const fetchWidgetConfig = useCallback(async () => {
     try {
-      const res = await fetchWithAuth('/api/widgets/engage-comments/public-config');
+      const res = await fetchWithAuth(apiUrl('/api/widgets/engage-comments/public-config'));
       if (res.ok) {
         const data = await res.json();
         setWidgetSettings((prev) => ({ ...prev, ...data }));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const fetchTrialStatus = useCallback(async () => {
+    try {
+      const res = await fetchWithAuth(apiUrl('/api/dashboard/trial-status'));
+      if (res.ok) {
+        setTrialStatus(await res.json());
       }
     } catch (e) {
       console.error(e);
@@ -130,12 +149,13 @@ function DashboardApp() {
     fetchOverview();
     fetchComments();
     fetchWidgetConfig();
-  }, [fetchOverview, fetchComments, fetchWidgetConfig]);
+    fetchTrialStatus();
+  }, [fetchOverview, fetchComments, fetchWidgetConfig, fetchTrialStatus]);
 
   const handleModerate = async (commentId: string, action: 'approve' | 'reject' | 'pin' | 'unpin' | 'delete' | 'owner-reply') => {
     try {
       const replyText = replyTextMap[commentId];
-      const res = await fetchWithAuth('/api/dashboard/moderate', {
+      const res = await fetchWithAuth(apiUrl('/api/dashboard/moderate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commentId, action, replyText }),
@@ -157,7 +177,7 @@ function DashboardApp() {
   const handleSaveModerationRules = async () => {
     try {
       const words = blockedWordsInput.split(',').map((w) => w.trim()).filter(Boolean);
-      const res = await fetchWithAuth('/api/dashboard/widgets', {
+      const res = await fetchWithAuth(apiUrl('/api/dashboard/widgets'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ widgetKey: 'engage-comments', settings: { blockedWords: words } }),
@@ -173,7 +193,7 @@ function DashboardApp() {
 
   const handleExportCsv = async () => {
     try {
-      const res = await fetchWithAuth('/api/dashboard/export');
+      const res = await fetchWithAuth(apiUrl('/api/dashboard/export'));
       if (!res.ok) {
         throw new Error('Failed to export comments');
       }
@@ -607,6 +627,20 @@ function DashboardApp() {
                       </Box>
 
                       <Divider />
+
+                      {trialStatus.available && trialStatus.upgradeUrl && (
+                        <SectionHelper appearance="standard" title="Try Pro free">
+                          Start your free trial to unlock advanced widgets, ratings, exports, and customization.
+                          <Box marginTop="8px">
+                            <Button
+                              priority="primary"
+                              onClick={() => window.open(trialStatus.upgradeUrl, '_blank', 'noopener,noreferrer')}
+                            >
+                              Start free trial
+                            </Button>
+                          </Box>
+                        </SectionHelper>
+                      )}
 
                       <Box direction="vertical" gap="6px">
                         <Box align="space-between">

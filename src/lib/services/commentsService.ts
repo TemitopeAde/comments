@@ -1,4 +1,5 @@
 import type { EngageComment, CommentStatus, AuthorType, TargetType } from '../types';
+import { members } from '@wix/members';
 import {
   COLLECTIONS,
   elevatedQuery,
@@ -9,6 +10,77 @@ import {
 } from './dataAccess';
 import { getWidgetConfig } from './widgetsService';
 
+const isDevelopmentEnvironment = import.meta.env.WIX_ENVIRONMENT === 'development';
+
+interface AuthenticatedMember {
+  id: string;
+  email: string | null;
+  avatarUrl: string | null;
+  displayName: string | null;
+}
+
+async function getAuthenticatedMember(): Promise<AuthenticatedMember | null> {
+  try {
+    const response = await members.getCurrentMember({ fieldsets: ['EXTENDED'] });
+    console.log('[comments] members.getCurrentMember response:', response);
+    const member = response.member;
+    const memberId = member?._id || (member as { id?: string } | undefined)?.id;
+    if (!memberId) return null;
+
+    const memberData = member as {
+      profile?: { nickname?: string | null; photo?: { url?: string } };
+      contact?: { name?: { first?: string; last?: string; fullName?: string } };
+    };
+    const contactName = memberData.contact?.name;
+
+    return {
+      id: memberId,
+      email: member?.loginEmail || null,
+      avatarUrl: memberData.profile?.photo?.url || null,
+      displayName: memberData.profile?.nickname || contactName?.fullName ||
+        [contactName?.first, contactName?.last].filter(Boolean).join(' ') || null,
+    };
+  } catch {
+    // Visitors and guests do not have a current member. They remain anonymous.
+    return null;
+  }
+}
+
+export function toPublicComment(comment: EngageComment): Omit<EngageComment, 'authorMemberEmail' | 'authorSessionId'> {
+  const { authorMemberEmail: _authorMemberEmail, authorSessionId: _authorSessionId, ...publicComment } = comment;
+  return publicComment;
+}
+
+function canEditComment(comment: EngageComment, member: AuthenticatedMember | null, clientSessionId?: string | null) {
+  return Boolean(
+    (member?.id && comment.authorMemberId === member.id) ||
+    (clientSessionId && comment.authorSessionId === clientSessionId),
+  );
+}
+
+async function enforceProductionPlanLimits() {
+  // Local development is intentionally unrestricted so the app can be tested
+  // without consuming the Basic plan quota.
+  if (isDevelopmentEnvironment) return;
+
+  const usage = memoryStore.usage;
+  const submissionsLimit = Number(usage.submissionsLimit ?? usage.commentsLimit ?? 3);
+  const storedComments = await getStoredComments();
+  const currentPeriod = new Date().toISOString().slice(0, 7);
+  const submissionsThisPeriod = storedComments.filter((comment) =>
+    String(comment._createdDate || '').slice(0, 7) === currentPeriod,
+  ).length;
+  if (submissionsThisPeriod >= submissionsLimit) {
+    throw new Error(`This plan allows ${submissionsLimit} new submissions per month. Upgrade to continue.`);
+  }
+
+  const publishedComments = storedComments.filter((comment) => comment.status === 'published').length;
+  const publishedCommentsLimit = Number(usage.publishedCommentsLimit ?? 3);
+  if (publishedComments >= publishedCommentsLimit) {
+    throw new Error(`This plan allows ${publishedCommentsLimit} published comments. Upgrade to continue.`);
+  }
+}
+
 export interface CommentQueryOptions {
   widgetKey?: string;
   targetType?: TargetType;
@@ -17,6 +89,7 @@ export interface CommentQueryOptions {
   limit?: number;
   offset?: number;
   status?: CommentStatus;
+  clientSessionId?: string | null;
 }
 
 async function getStoredComments(): Promise<EngageComment[]> {
@@ -56,7 +129,9 @@ export async function getPublishedComments(options: CommentQueryOptions) {
     sort = 'newest',
     limit = 10,
     offset = 0,
+    clientSessionId,
   } = options;
+  const requester = await getAuthenticatedMember();
 
   let allComments = (await getStoredComments()).filter(
     (comment) =>
@@ -93,11 +168,17 @@ export async function getPublishedComments(options: CommentQueryOptions) {
     : 0;
 
   return {
-    items: paged,
+    items: paged.map((comment) => ({
+      ...toPublicComment(comment),
+      canEdit: canEditComment(comment, requester, clientSessionId),
+    })),
     totalCount: total,
     averageRating: avgRating,
     totalReviews: rated.length,
     hasMore: offset + limit < total,
+    currentMember: requester
+      ? { displayName: requester.displayName, avatarUrl: requester.avatarUrl }
+      : null,
   };
 }
 
@@ -110,14 +191,13 @@ export async function createComment(data: {
   rating?: number | null;
   parentCommentId?: string | null;
   authorType?: AuthorType;
+  clientSessionId?: string | null;
 }) {
+  await enforceProductionPlanLimits();
+
   const widget = await getWidgetConfig(data.widgetKey);
   const settings = widget.settings;
-
-  // Check character limit
-  if (data.contentText.length > settings.maxCharacters) {
-    throw new Error(`Content exceeds max character limit of ${settings.maxCharacters}`);
-  }
+  const authenticatedMember = await getAuthenticatedMember();
 
   // Check blocked words
   const contentLower = data.contentText.toLowerCase();
@@ -161,8 +241,12 @@ export async function createComment(data: {
     targetReference: data.targetReference || undefined,
     parentCommentId: data.parentCommentId || null,
     threadRootId,
-    authorType: data.authorType || 'guest',
-    authorDisplayName: data.authorDisplayName.trim(),
+    authorType: data.authorType === 'owner' ? 'owner' : authenticatedMember ? 'member' : 'guest',
+    authorMemberId: authenticatedMember?.id || null,
+    authorMemberEmail: authenticatedMember?.email || null,
+    authorSessionId: authenticatedMember ? null : data.clientSessionId || null,
+    authorAvatarUrl: authenticatedMember?.avatarUrl || null,
+    authorDisplayName: authenticatedMember?.displayName || data.authorDisplayName.trim(),
     contentText: data.contentText.trim(),
     rating: settings.enableRatings ? data.rating : null,
     status: initialStatus,
@@ -198,13 +282,60 @@ export async function createComment(data: {
   return newComment;
 }
 
-export async function getReplies(parentCommentId: string) {
+export async function getReplies(parentCommentId: string, clientSessionId?: string | null) {
+  const requester = await getAuthenticatedMember();
   const replies = (await getStoredComments()).filter(
     (comment) => comment.parentCommentId === parentCommentId && comment.status === 'published',
   );
 
   replies.sort((a, b) => new Date(a._createdDate || 0).getTime() - new Date(b._createdDate || 0).getTime());
-  return replies;
+  return replies.map((comment) => ({
+    ...toPublicComment(comment),
+    canEdit: canEditComment(comment, requester, clientSessionId),
+  }));
+}
+
+export async function updateComment(commentId: string, contentText: string, clientSessionId?: string | null) {
+  const comment = await getStoredComment(commentId);
+  if (!comment) throw new Error('Comment not found');
+
+  const requester = await getAuthenticatedMember();
+  if (!canEditComment(comment, requester, clientSessionId)) {
+    throw new Error('You can only edit comments you created.');
+  }
+
+  const widget = await getWidgetConfig(comment.widgetKey);
+  comment.contentText = contentText.trim();
+  comment._updatedDate = new Date().toISOString();
+
+  try {
+    await elevatedUpdate(COLLECTIONS.COMMENTS, comment);
+  } catch {
+    // Keep the in-memory fallback in development or when Wix Data is unavailable.
+  }
+  memoryStore.comments.set(comment._id, comment);
+  return comment;
+}
+
+export async function deleteComment(commentId: string, clientSessionId?: string | null) {
+  const comment = await getStoredComment(commentId);
+  if (!comment) throw new Error('Comment not found');
+
+  const requester = await getAuthenticatedMember();
+  if (!canEditComment(comment, requester, clientSessionId)) {
+    throw new Error('You can only delete comments you created.');
+  }
+
+  comment.status = 'deleted';
+  comment._updatedDate = new Date().toISOString();
+
+  try {
+    await elevatedUpdate(COLLECTIONS.COMMENTS, comment);
+  } catch {
+    // Keep the in-memory fallback in development or when Wix Data is unavailable.
+  }
+  memoryStore.comments.set(comment._id, comment);
+  return comment;
 }
 
 export async function toggleReaction(commentId: string, reactionType: string = 'like', actorKey: string) {

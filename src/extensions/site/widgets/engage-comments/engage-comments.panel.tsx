@@ -1,5 +1,6 @@
 import React, { type FC, useState, useEffect, useCallback } from 'react';
 import { inputs, widget } from '@wix/editor';
+import { httpClient } from '@wix/essentials';
 import {
   SidePanel,
   WixDesignSystemProvider,
@@ -8,7 +9,7 @@ import {
   Input,
   FormField,
   ToggleSwitch,
-  Divider,
+  Accordion,
   Box,
   Text,
   SectionHelper,
@@ -20,12 +21,21 @@ interface FontPickerValue {
   textDecoration?: string;
 }
 
+const DEFAULT_FONT = '16px helvetica-w01-roman';
+const API_ORIGIN = new URL(import.meta.url).origin;
+const apiUrl = (path: string) => new URL(path, API_ORIGIN).toString();
+
+interface TrialStatus {
+  available: boolean;
+  upgradeUrl?: string;
+}
+
 const ColorSwatch: FC<{ color: string; onClick: () => void }> = ({ color, onClick }) => (
-  <FillPreview fill={color} size="medium" onClick={onClick} />
+  <FillPreview fill={color} size="small" onClick={onClick} />
 );
 
 const Panel: FC = () => {
-  const [title, setTitle] = useState<string>('Community Feedback & Reviews');
+  const [title, setTitle] = useState<string>('Comments & Feedback');
   const [subtitle, setSubtitle] = useState<string>('Join the conversation and share your verified thoughts');
   const [primaryColor, setPrimaryColor] = useState<string>('#3899ec');
   const [starColor, setStarColor] = useState<string>('#ffb800');
@@ -33,19 +43,25 @@ const Panel: FC = () => {
   const [subtitleColor, setSubtitleColor] = useState<string>('#64748b');
   const [bodyColor, setBodyColor] = useState<string>('#334155');
   const [buttonTextColor, setButtonTextColor] = useState<string>('#ffffff');
-  const [enableRatings, setEnableRatings] = useState<boolean>(true);
+  const [enableRatings, setEnableRatings] = useState<boolean>(false);
   const [enableReplies, setEnableReplies] = useState<boolean>(true);
   const [enableReactions, setEnableReactions] = useState<boolean>(true);
   const [allowGuest, setAllowGuest] = useState<boolean>(true);
   const [requireApproval, setRequireApproval] = useState<boolean>(false);
-  const [maxChars, setMaxChars] = useState<string>('1000');
-  const [font, setFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
-  const [titleFont, setTitleFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
-  const [subtitleFont, setSubtitleFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
-  const [bodyFont, setBodyFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
-  const [buttonFont, setButtonFont] = useState<FontPickerValue>({ font: 'Arial', textDecoration: '' });
+  const [font, setFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
+  const [titleFont, setTitleFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
+  const [subtitleFont, setSubtitleFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
+  const [bodyFont, setBodyFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
+  const [buttonFont, setButtonFont] = useState<FontPickerValue>({ font: DEFAULT_FONT, textDecoration: '' });
+  const [trialStatus, setTrialStatus] = useState<TrialStatus>({ available: false });
 
   useEffect(() => {
+    httpClient.fetchWithAuth(apiUrl('/api/dashboard/trial-status'))
+      .then(async (response) => {
+        if (response.ok) setTrialStatus(await response.json());
+      })
+      .catch(console.error);
+
     widget.getProp('title').then((v) => v && setTitle(v)).catch(console.error);
     widget.getProp('subtitle').then((v) => v && setSubtitle(v)).catch(console.error);
     widget.getProp('primary-color').then((v) => v && setPrimaryColor(v)).catch(console.error);
@@ -54,12 +70,11 @@ const Panel: FC = () => {
     widget.getProp('subtitle-color').then((v) => v && setSubtitleColor(v)).catch(console.error);
     widget.getProp('body-color').then((v) => v && setBodyColor(v)).catch(console.error);
     widget.getProp('button-text-color').then((v) => v && setButtonTextColor(v)).catch(console.error);
-    widget.getProp('enable-ratings').then((v) => setEnableRatings(v !== 'false')).catch(console.error);
+    widget.getProp('enable-ratings').then((v) => setEnableRatings(v === 'true')).catch(console.error);
     widget.getProp('enable-replies').then((v) => setEnableReplies(v !== 'false')).catch(console.error);
     widget.getProp('enable-reactions').then((v) => setEnableReactions(v !== 'false')).catch(console.error);
     widget.getProp('allow-guest').then((v) => setAllowGuest(v !== 'false')).catch(console.error);
     widget.getProp('require-approval').then((v) => setRequireApproval(v === 'true')).catch(console.error);
-    widget.getProp('max-chars').then((v) => v && setMaxChars(v)).catch(console.error);
     widget.getProp('font').then((v) => {
       if (!v) return;
       try {
@@ -160,12 +175,6 @@ const Panel: FC = () => {
     widget.setProp('require-approval', val ? 'true' : 'false');
   }, []);
 
-  const handleMaxCharsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setMaxChars(val);
-    widget.setProp('max-chars', val);
-  }, []);
-
   return (
     <WixDesignSystemProvider>
       <SidePanel width="320" height="100vh">
@@ -173,153 +182,182 @@ const Panel: FC = () => {
           title="Engage Comments Settings"
         />
         <SidePanel.Content noPadding stretchVertically>
-          <Box direction="vertical" gap="16px" padding="16px">
-            <SidePanel.Field>
-              <FormField label="Widget Title">
-                <Input value={title} onChange={handleTitleChange} />
-              </FormField>
-            </SidePanel.Field>
-
-            <Divider />
-            <Text size="small" weight="bold">Element Typography & Colors</Text>
-
-            <SidePanel.Field>
-              <FormField label="Title">
-                <Box direction="vertical" gap="8px">
-                  <Button priority="secondary" onClick={() => handleElementFontPick('title-font', titleFont, setTitleFont)} style={{ font: titleFont.font }}>
-                    {titleFont.font}
+          <Box width="100%" padding="16px">
+            {trialStatus.available && trialStatus.upgradeUrl && (
+              <SectionHelper appearance="standard" title="Try Pro free">
+                Start your free trial to unlock advanced widget features.
+                <Box marginTop="8px">
+                  <Button
+                    priority="primary"
+                    onClick={() => window.open(trialStatus.upgradeUrl, '_blank', 'noopener,noreferrer')}
+                  >
+                    Start free trial
                   </Button>
-                  <Box gap="8px" verticalAlign="middle">
-                    <ColorSwatch color={titleColor} onClick={() => handleColorPick('title-color', titleColor, setTitleColor)} />
-                    <Text size="small">{titleColor}</Text>
-                  </Box>
                 </Box>
-              </FormField>
-            </SidePanel.Field>
+              </SectionHelper>
+            )}
+            <Accordion
+              size="small"
+              skin="light"
+              hideShadow
+              multiple
+              contentPadding="none"
+              horizontalPadding="none"
+              items={[
+                {
+                  title: 'Content',
+                  children: (
+                    <Box direction="vertical" gap="16px" padding="16px 0">
+                      <SidePanel.Field>
+                        <FormField label="Widget Title">
+                          <Input value={title} onChange={handleTitleChange} />
+                        </FormField>
+                      </SidePanel.Field>
+                      <SidePanel.Field>
+                        <FormField label="Subtitle">
+                          <Input value={subtitle} onChange={handleSubtitleChange} />
+                        </FormField>
+                      </SidePanel.Field>
+                    </Box>
+                  ),
+                },
+                {
+                  title: 'Typography & Colors',
+                  children: (
+                    <Box direction="vertical" gap="16px" padding="16px 0">
+                      <SidePanel.Field>
+                        <FormField label="Title">
+                          <Box direction="vertical" gap="8px">
+                            <Button priority="secondary" onClick={() => handleElementFontPick('title-font', titleFont, setTitleFont)} style={{ fontFamily: titleFont.font }}>
+                              {titleFont.font}
+                            </Button>
+                            <Box gap="8px" verticalAlign="middle">
+                              <ColorSwatch color={titleColor} onClick={() => handleColorPick('title-color', titleColor, setTitleColor)} />
+                              <Text size="small">{titleColor}</Text>
+                            </Box>
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
-            <SidePanel.Field>
-              <FormField label="Subtitle">
-                <Box direction="vertical" gap="8px">
-                  <Button priority="secondary" onClick={() => handleElementFontPick('subtitle-font', subtitleFont, setSubtitleFont)} style={{ font: subtitleFont.font }}>
-                    {subtitleFont.font}
-                  </Button>
-                  <Box gap="8px" verticalAlign="middle">
-                    <ColorSwatch color={subtitleColor} onClick={() => handleColorPick('subtitle-color', subtitleColor, setSubtitleColor)} />
-                    <Text size="small">{subtitleColor}</Text>
-                  </Box>
-                </Box>
-              </FormField>
-            </SidePanel.Field>
+                      <SidePanel.Field>
+                        <FormField label="Subtitle">
+                          <Box direction="vertical" gap="8px">
+                            <Button priority="secondary" onClick={() => handleElementFontPick('subtitle-font', subtitleFont, setSubtitleFont)} style={{ fontFamily: subtitleFont.font }}>
+                              {subtitleFont.font}
+                            </Button>
+                            <Box gap="8px" verticalAlign="middle">
+                              <ColorSwatch color={subtitleColor} onClick={() => handleColorPick('subtitle-color', subtitleColor, setSubtitleColor)} />
+                              <Text size="small">{subtitleColor}</Text>
+                            </Box>
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
-            <SidePanel.Field>
-              <FormField label="Body Text">
-                <Box direction="vertical" gap="8px">
-                  <Button priority="secondary" onClick={() => handleElementFontPick('body-font', bodyFont, setBodyFont)} style={{ font: bodyFont.font }}>
-                    {bodyFont.font}
-                  </Button>
-                  <Box gap="8px" verticalAlign="middle">
-                    <ColorSwatch color={bodyColor} onClick={() => handleColorPick('body-color', bodyColor, setBodyColor)} />
-                    <Text size="small">{bodyColor}</Text>
-                  </Box>
-                </Box>
-              </FormField>
-            </SidePanel.Field>
+                      <SidePanel.Field>
+                        <FormField label="Body Text">
+                          <Box direction="vertical" gap="8px">
+                            <Button priority="secondary" onClick={() => handleElementFontPick('body-font', bodyFont, setBodyFont)} style={{ fontFamily: bodyFont.font }}>
+                              {bodyFont.font}
+                            </Button>
+                            <Box gap="8px" verticalAlign="middle">
+                              <ColorSwatch color={bodyColor} onClick={() => handleColorPick('body-color', bodyColor, setBodyColor)} />
+                              <Text size="small">{bodyColor}</Text>
+                            </Box>
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
-            <SidePanel.Field>
-              <FormField label="Button Text">
-                <Box direction="vertical" gap="8px">
-                  <Button priority="secondary" onClick={() => handleElementFontPick('button-font', buttonFont, setButtonFont)} style={{ font: buttonFont.font }}>
-                    {buttonFont.font}
-                  </Button>
-                  <Box gap="8px" verticalAlign="middle">
-                    <ColorSwatch color={buttonTextColor} onClick={() => handleColorPick('button-text-color', buttonTextColor, setButtonTextColor)} />
-                    <Text size="small">{buttonTextColor}</Text>
-                  </Box>
-                </Box>
-              </FormField>
-            </SidePanel.Field>
+                      <SidePanel.Field>
+                        <FormField label="Button Text">
+                          <Box direction="vertical" gap="8px">
+                            <Button priority="secondary" onClick={() => handleElementFontPick('button-font', buttonFont, setButtonFont)} style={{ fontFamily: buttonFont.font }}>
+                              {buttonFont.font}
+                            </Button>
+                            <Box gap="8px" verticalAlign="middle">
+                              <ColorSwatch color={buttonTextColor} onClick={() => handleColorPick('button-text-color', buttonTextColor, setButtonTextColor)} />
+                              <Text size="small">{buttonTextColor}</Text>
+                            </Box>
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
-            <SidePanel.Field>
-              <FormField label="Subtitle">
-                <Input value={subtitle} onChange={handleSubtitleChange} />
-              </FormField>
-            </SidePanel.Field>
+                      <SidePanel.Field>
+                        <FormField label="Primary Accent Color">
+                          <Box gap="8px" verticalAlign="middle">
+                            <ColorSwatch color={primaryColor} onClick={() => handleColorPick('primary-color', primaryColor, setPrimaryColor)} />
+                            <Text size="small">{primaryColor}</Text>
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
-            <Divider />
+                      <SidePanel.Field>
+                        <FormField label="Star Color">
+                          <Box gap="8px" verticalAlign="middle">
+                            <ColorSwatch color={starColor} onClick={() => handleColorPick('star-color', starColor, setStarColor)} />
+                            <Text size="small">{starColor}</Text>
+                          </Box>
+                        </FormField>
+                      </SidePanel.Field>
 
-            <Box align="space-between" verticalAlign="middle">
-              <Box direction="vertical">
-                <Text size="small" weight="bold">Star Ratings</Text>
-                <Text size="tiny" secondary>Collect 1-5 star reviews</Text>
-              </Box>
-              <ToggleSwitch checked={enableRatings} onChange={handleToggleRatings} />
-            </Box>
+                      <SidePanel.Field>
+                        <FormField label="Widget Font">
+                          <Button priority="secondary" onClick={handleFontPick} style={{ fontFamily: font.font }}>
+                            {font.font || 'Choose a font'}
+                          </Button>
+                        </FormField>
+                      </SidePanel.Field>
+                    </Box>
+                  ),
+                },
+                {
+                  title: 'Behavior',
+                  children: (
+                    <Box direction="vertical" gap="20px" padding="16px 0">
+                      <Box align="space-between" verticalAlign="middle">
+                        <Box direction="vertical">
+                          <Text size="small" weight="bold">Star Ratings</Text>
+                          <Text size="tiny" secondary>Collect 1-5 star reviews</Text>
+                        </Box>
+                        <ToggleSwitch checked={enableRatings} onChange={handleToggleRatings} />
+                      </Box>
 
-            <Box align="space-between" verticalAlign="middle">
-              <Box direction="vertical">
-                <Text size="small" weight="bold">Threaded Replies</Text>
-                <Text size="tiny" secondary>Allow discussions & answers</Text>
-              </Box>
-              <ToggleSwitch checked={enableReplies} onChange={handleToggleReplies} />
-            </Box>
+                      <Box align="space-between" verticalAlign="middle">
+                        <Box direction="vertical">
+                          <Text size="small" weight="bold">Threaded Replies</Text>
+                          <Text size="tiny" secondary>Allow discussions & answers</Text>
+                        </Box>
+                        <ToggleSwitch checked={enableReplies} onChange={handleToggleReplies} />
+                      </Box>
 
-            <Box align="space-between" verticalAlign="middle">
-              <Box direction="vertical">
-                <Text size="small" weight="bold">Reactions (Like)</Text>
-                <Text size="tiny" secondary>Visitors can like comments</Text>
-              </Box>
-              <ToggleSwitch checked={enableReactions} onChange={handleToggleReactions} />
-            </Box>
+                      <Box align="space-between" verticalAlign="middle">
+                        <Box direction="vertical">
+                          <Text size="small" weight="bold">Reactions (Like)</Text>
+                          <Text size="tiny" secondary>Visitors can like comments</Text>
+                        </Box>
+                        <ToggleSwitch checked={enableReactions} onChange={handleToggleReactions} />
+                      </Box>
 
-            <Box align="space-between" verticalAlign="middle">
-              <Box direction="vertical">
-                <Text size="small" weight="bold">Guest Commenting</Text>
-                <Text size="tiny" secondary>Allow visitors to post without signing in</Text>
-              </Box>
-              <ToggleSwitch checked={allowGuest} onChange={handleToggleGuestPosting} />
-            </Box>
+                      <Box align="space-between" verticalAlign="middle">
+                        <Box direction="vertical">
+                          <Text size="small" weight="bold">Guest Commenting</Text>
+                          <Text size="tiny" secondary>Allow visitors to post without signing in</Text>
+                        </Box>
+                        <ToggleSwitch checked={allowGuest} onChange={handleToggleGuestPosting} />
+                      </Box>
 
-            <Box align="space-between" verticalAlign="middle">
-              <Box direction="vertical">
-                <Text size="small" weight="bold">Require Approval</Text>
-                <Text size="tiny" secondary>Review comments before publishing</Text>
-              </Box>
-              <ToggleSwitch checked={requireApproval} onChange={handleToggleApproval} />
-            </Box>
+                      <Box align="space-between" verticalAlign="middle">
+                        <Box direction="vertical">
+                          <Text size="small" weight="bold">Require Approval</Text>
+                          <Text size="tiny" secondary>Review comments before publishing</Text>
+                        </Box>
+                        <ToggleSwitch checked={requireApproval} onChange={handleToggleApproval} />
+                      </Box>
 
-            <Divider />
-
-            <SidePanel.Field>
-              <FormField label="Primary Accent Color">
-                <Box gap="8px" verticalAlign="middle">
-                  <ColorSwatch color={primaryColor} onClick={() => handleColorPick('primary-color', primaryColor, setPrimaryColor)} />
-                  <Text size="small">{primaryColor}</Text>
-                </Box>
-              </FormField>
-            </SidePanel.Field>
-
-            <SidePanel.Field>
-              <FormField label="Star Color">
-                <Box gap="8px" verticalAlign="middle">
-                  <ColorSwatch color={starColor} onClick={() => handleColorPick('star-color', starColor, setStarColor)} />
-                  <Text size="small">{starColor}</Text>
-                </Box>
-              </FormField>
-            </SidePanel.Field>
-
-            <SidePanel.Field>
-              <FormField label="Widget Font">
-                <Button priority="secondary" onClick={handleFontPick} style={{ font: font.font }}>
-                  {font.font || 'Choose a font'}
-                </Button>
-              </FormField>
-            </SidePanel.Field>
-
-            <SidePanel.Field>
-              <FormField label="Max Characters">
-                <Input type="number" value={maxChars} onChange={handleMaxCharsChange} />
-              </FormField>
-            </SidePanel.Field>
+                    </Box>
+                  ),
+                },
+              ]}
+            />
           </Box>
         </SidePanel.Content>
         <SidePanel.Footer noPadding>

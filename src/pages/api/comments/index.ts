@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { createComment, getPublishedComments } from '../../../lib/services/commentsService';
+import { createComment, getPublishedComments, toPublicComment } from '../../../lib/services/commentsService';
 import { createCommentSchema } from '../../../lib/validation/schemas';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -11,6 +11,7 @@ export const GET: APIRoute = async ({ request }) => {
       ? (targetTypeValue as 'generalPage' | 'blogPost' | 'product' | 'testimonialSection')
       : undefined;
     const targetReference = url.searchParams.get('targetReference') || undefined;
+    const clientSessionId = url.searchParams.get('clientSessionId') || undefined;
     const sortValue = url.searchParams.get('sort');
     const sort = ['newest', 'oldest', 'most-liked', 'highest-rated'].includes(sortValue || '')
       ? (sortValue as 'newest' | 'oldest' | 'most-liked' | 'highest-rated')
@@ -24,6 +25,7 @@ export const GET: APIRoute = async ({ request }) => {
       widgetKey,
       targetType,
       targetReference,
+      clientSessionId,
       sort,
       limit,
       offset,
@@ -48,12 +50,13 @@ export const POST: APIRoute = async ({ request }) => {
       contentText: validated.contentText,
       rating: validated.rating,
       parentCommentId: validated.parentCommentId,
+      clientSessionId: validated.clientSessionId,
     });
 
     return Response.json(
       {
         success: true,
-        item: comment,
+        item: toPublicComment(comment),
         message:
           comment.status === 'pending'
             ? 'Your comment is awaiting moderation.'

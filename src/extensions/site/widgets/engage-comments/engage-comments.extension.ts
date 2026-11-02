@@ -4,7 +4,7 @@ export default extensions.customElement({
   id: '724cb518-5452-40b8-b8c7-e45d3ce8e595',
   name: 'Engage Comments',
   width: {
-    defaultWidth: 450,
+    defaultWidth: 700,
     allowStretch: true
   },
   height: {

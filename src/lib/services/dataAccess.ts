@@ -43,9 +43,11 @@ const memoryStore: MemoryStore = {
   usage: {
     periodKey: new Date().toISOString().slice(0, 7),
     commentsCreated: 0,
-    planName: 'Free',
+    planName: 'Basic',
     isPro: false,
-    commentsLimit: 100,
+    publishedCommentsLimit: 3,
+    submissionsLimit: 3,
+    commentsLimit: 3,
   },
 };
 

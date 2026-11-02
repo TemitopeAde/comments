@@ -2,16 +2,16 @@ import type { EngageWidget, WidgetSettings } from '../types';
 import { COLLECTIONS, elevatedSave, elevatedQuery, memoryStore } from './dataAccess';
 
 export const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
-  title: 'Community Feedback & Reviews',
+  title: 'Comments & Feedback',
   subtitle: 'Join the conversation and share your verified thoughts',
   enableComments: true,
   enableReplies: true,
-  enableRatings: true,
+  enableRatings: false,
   enableReactions: true,
   allowGuestPosting: true,
   requireApproval: false,
   maxThreadDepth: 3,
-  maxCharacters: 1000,
+  maxCharacters: 600000,
   density: 'standard',
   primaryColor: '#3899ec',
   backgroundColor: 'transparent',

@@ -1,8 +1,146 @@
-import React, { type FC, useState, useEffect, useCallback } from 'react';
+import React, { type FC, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import reactToWebComponent from 'react-to-webcomponent';
+import { httpClient } from '@wix/essentials';
+import { Toaster, toast } from 'sonner';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import { Heart, MessageCircle, Pencil, Trash2, ChevronDown, ChevronUp, LoaderCircle, X } from 'lucide-react';
 import styles from './engage-comments.module.css';
 import type { EngageComment } from '../../../../lib/types';
+
+const DEFAULT_FONT = '16px helvetica-w01-roman';
+const COMMENTS_PAGE_SIZE = 20;
+const MAX_IMAGE_BYTES = 350 * 1024;
+const MAX_IMAGE_DIMENSION = 1600;
+const COMMENT_PREVIEW_LENGTH = 500;
+const API_ORIGIN = new URL(import.meta.url).origin;
+
+const apiUrl = (path: string) => new URL(path, API_ORIGIN).toString();
+
+const sanitizeRichText = (html: string) => {
+  if (typeof document === 'undefined') return '';
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  template.content.querySelectorAll('script,style,iframe,object,embed,form').forEach((node) => node.remove());
+  template.content.querySelectorAll('*').forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      if (attribute.name.toLowerCase().startsWith('on')) element.removeAttribute(attribute.name);
+      if (attribute.name === 'href' && !/^(https?:|mailto:)/i.test(attribute.value)) {
+        element.removeAttribute(attribute.name);
+      }
+      if (attribute.name === 'src' && !/^(https?:|data:image\/)/i.test(attribute.value)) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  });
+  return template.innerHTML;
+};
+
+const getRichTextPreview = (html: string, maxLength: number) => {
+  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, '').slice(0, maxLength);
+
+  const container = document.createElement('div');
+  container.innerHTML = sanitizeRichText(html);
+  let remaining = maxLength;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  let node: Node | null;
+
+  while ((node = walker.nextNode())) textNodes.push(node as Text);
+
+  for (const textNode of textNodes) {
+    if (remaining <= 0) {
+      textNode.remove();
+      continue;
+    }
+    if (textNode.data.length > remaining) {
+      textNode.data = textNode.data.slice(0, remaining);
+      remaining = 0;
+    } else {
+      remaining -= textNode.data.length;
+    }
+  }
+
+  return container.innerHTML;
+};
+
+const CollapsibleRichText = ({ content, className }: { content: string; className?: string }) => {
+  const [expanded, setExpanded] = useState(false);
+  const plainText = getRichTextPlainTextForEditor(content);
+  const isLong = plainText > COMMENT_PREVIEW_LENGTH;
+
+  return (
+    <>
+      <div
+        className={className}
+        dangerouslySetInnerHTML={{
+          __html: expanded || !isLong ? sanitizeRichText(content) : `${getRichTextPreview(content, COMMENT_PREVIEW_LENGTH)}…`,
+        }}
+      />
+      {isLong && (
+        <button
+          type="button"
+          className={styles.seeMoreButton}
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'See less' : 'See more'}
+        </button>
+      )}
+    </>
+  );
+};
+
+const getRichTextPlainTextForEditor = (html: string) => {
+  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, ' ').trim().length;
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  return container.textContent?.replace(/\u00a0/g, ' ').trim().length || 0;
+};
+
+const Spinner = () => <LoaderCircle className={styles.spinner} size={16} aria-hidden="true" />;
+
+const compressImage = (file: File) => new Promise<string>((resolve, reject) => {
+  if (!file.type.startsWith('image/')) {
+    reject(new Error('Please choose an image file.'));
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  const image = new Image();
+  image.onload = () => {
+    URL.revokeObjectURL(objectUrl);
+    const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) {
+      reject(new Error('This image could not be processed.'));
+      return;
+    }
+
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    let dataUrl = canvas.toDataURL('image/webp', 0.78);
+    let quality = 0.68;
+    while (dataUrl.length > MAX_IMAGE_BYTES * 1.37 && quality >= 0.4) {
+      dataUrl = canvas.toDataURL('image/webp', quality);
+      quality -= 0.1;
+    }
+
+    if (dataUrl.length > MAX_IMAGE_BYTES * 1.37) {
+      reject(new Error('That image is too large. Please choose a smaller image.'));
+      return;
+    }
+    resolve(dataUrl);
+  };
+  image.onerror = () => {
+    URL.revokeObjectURL(objectUrl);
+    reject(new Error('This image could not be loaded.'));
+  };
+  image.src = objectUrl;
+});
 
 interface WidgetProps {
   widgetKey?: string;
@@ -26,14 +164,13 @@ interface WidgetProps {
   subtitleFont?: string;
   bodyFont?: string;
   buttonFont?: string;
-  maxChars?: string;
 }
 
 const EngageCommentsWidget: FC<WidgetProps> = ({
   widgetKey = 'engage-comments',
   targetType = 'generalPage',
   targetReference = 'home',
-  title = 'Community Feedback & Reviews',
+  title = 'Comments & Feedback',
   subtitle = 'Join the conversation and share your verified thoughts',
   primaryColor = '#3899ec',
   starColor = '#ffb800',
@@ -41,7 +178,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   subtitleColor = '#64748b',
   bodyColor = '#334155',
   buttonTextColor = '#ffffff',
-  enableRatings = 'true',
+  enableRatings = 'false',
   enableReplies = 'true',
   enableReactions = 'true',
   allowGuest = 'true',
@@ -50,21 +187,24 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   subtitleFont,
   bodyFont,
   buttonFont,
-  maxChars = '1000',
 }) => {
   const isRatingsEnabled = enableRatings !== 'false';
   const isRepliesEnabled = enableReplies !== 'false';
   const isReactionsEnabled = enableReactions !== 'false';
   const isGuestPostingEnabled = allowGuest !== 'false';
-  const maxCharacterLimit = parseInt(maxChars, 10) || 1000;
   const parseFontFamily = (value?: string) => {
     try {
-      return value ? (JSON.parse(value) as { font?: string }).font : undefined;
+      const parsed = value ? JSON.parse(value) as { font?: string } : undefined;
+      const fontValue = parsed?.font || value;
+      if (!fontValue) return undefined;
+      const familyDeclaration = fontValue.match(/font-family\s*:\s*([^;]+)/i);
+      return (familyDeclaration?.[1] || fontValue).trim();
     } catch {
-      return undefined;
+      const familyDeclaration = value?.match(/font-family\s*:\s*([^;]+)/i);
+      return (familyDeclaration?.[1] || value)?.trim();
     }
   };
-  const fontFamily = parseFontFamily(font);
+  const fontFamily = parseFontFamily(font) || DEFAULT_FONT;
   const titleFontFamily = parseFontFamily(titleFont) || fontFamily;
   const subtitleFontFamily = parseFontFamily(subtitleFont) || fontFamily;
   const bodyFontFamily = parseFontFamily(bodyFont) || fontFamily;
@@ -75,15 +215,36 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [averageRating, setAverageRating] = useState<number>(0);
   const [totalReviews, setTotalReviews] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(false);
   const [sort, setSort] = useState<'newest' | 'oldest' | 'most-liked'>('newest');
+  const commentsRef = useRef<EngageComment[]>([]);
+  const hasMoreRef = useRef<boolean>(false);
+  const loadingMoreRef = useRef<boolean>(false);
+  const commentsRequestRef = useRef<number>(0);
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [authorName, setAuthorName] = useState<string>('');
+  const [showNameField, setShowNameField] = useState<boolean>(false);
+  const [memberName, setMemberName] = useState<string | null>(null);
   const [contentText, setContentText] = useState<string>('');
+  const [contentLength, setContentLength] = useState<number>(0);
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const editingTextRef = useRef<string>('');
+  const [editingLength, setEditingLength] = useState<number>(0);
+  const [savingEdit, setSavingEdit] = useState<boolean>(false);
+  const [pendingReactionId, setPendingReactionId] = useState<string | null>(null);
+  const editDialogRef = useRef<HTMLDivElement>(null);
+  const [deleteConfirmComment, setDeleteConfirmComment] = useState<EngageComment | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const composerQuillRef = useRef<ReactQuill | null>(null);
+  const editingQuillRef = useRef<ReactQuill | null>(null);
 
   // Actor session id for reactions & guests
   const [actorKey] = useState<string>(() => {
@@ -113,53 +274,102 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [repliesMap, setRepliesMap] = useState<Record<string, EngageComment[]>>({});
   const [showRepliesMap, setShowRepliesMap] = useState<Record<string, boolean>>({});
 
-  const fetchComments = useCallback(async () => {
+  const fetchComments = useCallback(async (append = false) => {
+    if (append && (!hasMoreRef.current || loadingMoreRef.current)) return;
+
+    const requestId = commentsRequestRef.current + 1;
+    commentsRequestRef.current = requestId;
+    const offset = append ? commentsRef.current.length : 0;
+
+    if (!append) {
+      commentsRef.current = [];
+      hasMoreRef.current = false;
+      setHasMore(false);
+    }
+
     try {
-      setLoading(true);
+      if (append) {
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
       const params = new URLSearchParams({
         widgetKey,
         targetType,
         sort,
-        limit: '20',
+        limit: String(COMMENTS_PAGE_SIZE),
+        offset: String(offset),
       });
       if (targetReference) params.append('targetReference', targetReference);
+      params.append('clientSessionId', actorKey);
 
-      const res = await fetch(`/api/comments?${params.toString()}`);
+      const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments?${params.toString()}`));
       if (res.ok) {
         const data = await res.json();
-        setComments(data.items || []);
+        // Ignore a slower response from a previous sort or refresh request.
+        if (requestId !== commentsRequestRef.current) return;
+        const items = (data.items || []) as EngageComment[];
+        setComments((previous) => {
+          const next = append
+            ? [...previous, ...items.filter((item) => !previous.some((comment) => comment._id === item._id))]
+            : items;
+          commentsRef.current = next;
+          return next;
+        });
         setTotalCount(data.totalCount || 0);
         setAverageRating(data.averageRating || 0);
         setTotalReviews(data.totalReviews || 0);
+        setMemberName(data.currentMember?.displayName || null);
+        hasMoreRef.current = Boolean(data.hasMore);
+        setHasMore(Boolean(data.hasMore));
       }
     } catch (e) {
       console.error('Failed to load comments:', e);
     } finally {
-      setLoading(false);
+      if (append) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
-  }, [widgetKey, targetType, targetReference, sort]);
+  }, [actorKey, widgetKey, targetType, targetReference, sort]);
 
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
 
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) fetchComments(true);
+      },
+      { rootMargin: '320px 0px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [fetchComments, hasMore, loading, loadingMore]);
+
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isGuestPostingEnabled) return;
-    if (!contentText.trim()) return;
+    if (!contentLength) return;
 
     try {
       setSubmitting(true);
-      setStatusMessage(null);
 
-      const res = await fetch('/api/comments', {
+      const res = await httpClient.fetchWithAuth(apiUrl('/api/comments'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           widgetKey,
           targetType,
           targetReference,
-          authorDisplayName: authorName.trim() || 'Guest Visitor',
+          authorDisplayName: memberName || authorName.trim() || 'Guest Visitor',
           contentText: contentText.trim(),
           rating: isRatingsEnabled ? rating : null,
           clientSessionId: actorKey,
@@ -171,14 +381,12 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         throw new Error(data.error || 'Failed to submit comment');
       }
 
-      setStatusMessage({
-        type: 'success',
-        text: data.message || 'Comment posted successfully!',
-      });
+      toast.success(data.message || 'Comment posted successfully!');
       setContentText('');
+      setContentLength(0);
       fetchComments();
     } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err.message || 'An error occurred' });
+      toast.error(err.message || 'Unable to post your comment. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -186,7 +394,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
   const handleToggleLike = async (commentId: string) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}/reactions`, {
+      setPendingReactionId(commentId);
+      const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/reactions`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reactionType: 'like', actorKey }),
@@ -200,6 +409,95 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       }
     } catch (e) {
       console.error(e);
+    } finally {
+      setPendingReactionId(null);
+    }
+  };
+
+  const startEditing = (comment: EngageComment) => {
+    setEditingCommentId(comment._id);
+    setEditingText(comment.contentText);
+    editingTextRef.current = comment.contentText;
+    setEditingLength(getRichTextPlainTextForEditor(comment.contentText));
+  };
+
+  const cancelEditing = () => {
+    setEditingCommentId(null);
+    setEditingText('');
+    editingTextRef.current = '';
+    setEditingLength(0);
+  };
+
+  useEffect(() => {
+    if (!editingCommentId) return;
+    editDialogRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !savingEdit) cancelEditing();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [editingCommentId, savingEdit]);
+
+  useEffect(() => {
+    if (!deleteConfirmComment) return;
+    deleteDialogRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !deletingCommentId) setDeleteConfirmComment(null);
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [deleteConfirmComment, deletingCommentId]);
+
+  const handleSaveEdit = async () => {
+    if (!editingCommentId || !editingLength) return;
+
+    try {
+      setSavingEdit(true);
+      const response = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${editingCommentId}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentText: editingTextRef.current, clientSessionId: actorKey }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update comment');
+
+      setComments((previous) => previous.map((comment) =>
+        comment._id === editingCommentId ? { ...comment, ...data.item } : comment,
+      ));
+      await fetchComments();
+      toast.success('Comment updated successfully.');
+      cancelEditing();
+    } catch (error: any) {
+      toast.error(error.message || 'Unable to update your comment. Please try again.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!deleteConfirmComment) return;
+
+    try {
+      setDeletingCommentId(deleteConfirmComment._id);
+      const response = await httpClient.fetchWithAuth(
+        apiUrl(`/api/comments/${deleteConfirmComment._id}?clientSessionId=${encodeURIComponent(actorKey)}`),
+        { method: 'DELETE' },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete comment');
+
+      setComments((previous) => {
+        const next = previous.filter((comment) => comment._id !== deleteConfirmComment._id);
+        commentsRef.current = next;
+        return next;
+      });
+      setTotalCount((count) => Math.max(0, count - 1));
+      setDeleteConfirmComment(null);
+      toast.success('Comment deleted.');
+    } catch (error: any) {
+      toast.error(error.message || 'Unable to delete your comment. Please try again.');
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -209,7 +507,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
     if (!isCurrentlyOpen && !repliesMap[commentId]) {
       try {
-        const res = await fetch(`/api/comments/${commentId}/replies`);
+        const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
         if (res.ok) {
           const data = await res.json();
           setRepliesMap((prev) => ({ ...prev, [commentId]: data.items || [] }));
@@ -225,7 +523,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
     try {
       setReplySubmitting(true);
-      const res = await fetch(`/api/comments/${commentId}/replies`, {
+      const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/replies`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -240,7 +538,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         setReplyText('');
         setOpenReplyFormId(null);
         // Refresh replies for this comment
-        const repliesRes = await fetch(`/api/comments/${commentId}/replies`);
+        const repliesRes = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${commentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
         if (repliesRes.ok) {
           const data = await repliesRes.json();
           setRepliesMap((prev) => ({ ...prev, [commentId]: data.items || [] }));
@@ -267,6 +565,51 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
     return name.slice(0, 2).toUpperCase();
   };
 
+  const handleImageUpload = useCallback((quillRef: ReactQuill | null) => {
+    if (!quillRef) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      try {
+        const dataUrl = await compressImage(file);
+        const editor = quillRef.getEditor();
+        const range = editor.getSelection(true);
+        editor.insertEmbed(range?.index ?? editor.getLength(), 'image', dataUrl, 'user');
+        editor.setSelection((range?.index ?? editor.getLength()) + 1, 0, 'silent');
+      } catch (error: any) {
+        toast.error(error.message || 'Unable to add that image.');
+      }
+    };
+    input.click();
+  }, []);
+
+  const toolbarContainer = useMemo(() => [
+    ['bold', 'italic', 'underline'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['link', 'image', 'clean'],
+  ], []);
+
+  // Keep the module configuration stable. ReactQuill tears down and rebuilds
+  // the editor when this object changes, which can make the toolbar disappear
+  // while the widget is receiving async data or being updated by Wix.
+  const composerModules = useMemo(() => ({
+    toolbar: {
+      container: toolbarContainer,
+      handlers: { image: () => handleImageUpload(composerQuillRef.current) },
+    },
+  }), [handleImageUpload, toolbarContainer]);
+
+  const editingModules = useMemo(() => ({
+    toolbar: {
+      container: toolbarContainer,
+      handlers: { image: () => handleImageUpload(editingQuillRef.current) },
+    },
+  }), [handleImageUpload, toolbarContainer]);
+
   return (
     <div
       className={styles.root}
@@ -278,15 +621,17 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           '--subtitle-color': subtitleColor,
           '--body-color': bodyColor,
           '--button-text-color': buttonTextColor,
-          '--button-font': buttonFontFamily,
-          font: bodyFontFamily,
+          '--body-font-family': bodyFontFamily,
+          '--button-font-family': buttonFontFamily,
         } as React.CSSProperties
       }
     >
+      <Toaster position="top-center" richColors />
+
       {/* Header */}
       <div className={styles.header}>
-        <h2 className={styles.title} style={{ font: titleFontFamily }}>{title}</h2>
-        {subtitle && <p className={styles.subtitle} style={{ font: subtitleFontFamily }}>{subtitle}</p>}
+        <h2 className={styles.title} style={{ fontFamily: titleFontFamily }}>{title}</h2>
+        {subtitle && <p className={styles.subtitle} style={{ fontFamily: subtitleFontFamily }}>{subtitle}</p>}
         {isRatingsEnabled && totalReviews > 0 && (
           <div className={styles.ratingOverview}>
             <div className={styles.stars}>
@@ -307,22 +652,32 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
       {/* Composer */}
       <form className={styles.composer} onSubmit={handleSubmitComment}>
-        {statusMessage && (
-          <div className={statusMessage.type === 'success' ? styles.bannerSuccess : styles.bannerError}>
-            {statusMessage.text}
-          </div>
-        )}
-
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <input
-            type="text"
-            className={styles.inputField}
-            style={{ flex: 1, minWidth: 200 }}
-            placeholder="Your name or nickname"
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            disabled={!isGuestPostingEnabled}
-          />
+          {!memberName && !showNameField && (
+            <button
+              type="button"
+              className={styles.nameToggle}
+              onClick={() => setShowNameField(true)}
+              disabled={!isGuestPostingEnabled}
+              aria-expanded="false"
+              aria-controls="comment-name"
+            >
+              Add a name <span>(optional)</span>
+            </button>
+          )}
+
+          {!memberName && showNameField && (
+            <input
+              id="comment-name"
+              type="text"
+              className={styles.inputField}
+              style={{ flex: 1, minWidth: 200 }}
+              placeholder="Your name or nickname"
+              value={authorName}
+              onChange={(e) => setAuthorName(e.target.value)}
+              disabled={!isGuestPostingEnabled}
+            />
+          )}
 
           {isRatingsEnabled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -347,22 +702,29 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           )}
         </div>
 
-        <textarea
-          className={`${styles.inputField} ${styles.textareaField}`}
-          placeholder="Share your comments, questions, or reviews..."
-          value={contentText}
-          maxLength={maxCharacterLimit}
-          onChange={(e) => setContentText(e.target.value)}
-          required
-          disabled={!isGuestPostingEnabled}
-        />
+        <div className={styles.richTextEditor}>
+          <ReactQuill
+            ref={composerQuillRef}
+            theme="snow"
+            value={contentText}
+            onChange={(value, _delta, _source, editor) => {
+              const plainText = editor.getText().replace(/\n$/, '');
+              setContentText(value);
+              setContentLength(plainText.length);
+            }}
+            placeholder="Share your comments, questions, or reviews..."
+            readOnly={!isGuestPostingEnabled}
+            modules={composerModules}
+          />
+        </div>
 
         <div className={styles.composerActions}>
           <span className={styles.charCount}>
-            {contentText.length} / {maxCharacterLimit} characters
+            {contentLength} characters
           </span>
-          <button type="submit" className={styles.submitBtn} disabled={!isGuestPostingEnabled || submitting || !contentText.trim()}>
-            {!isGuestPostingEnabled ? 'Guest posting disabled' : submitting ? 'Posting...' : 'Post Comment'}
+          <button type="submit" className={styles.submitBtn} disabled={!isGuestPostingEnabled || submitting || !contentLength}>
+            {submitting && <Spinner />}
+            {!isGuestPostingEnabled ? 'Guest posting disabled' : 'Post Comment'}
           </button>
         </div>
       </form>
@@ -387,7 +749,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       {/* Comment List */}
       <div className={styles.commentsList}>
         {loading ? (
-          <div className={styles.emptyState}>Loading discussions...</div>
+          <div className={styles.emptyState} role="status" aria-live="polite" aria-label="Loading comments"><Spinner /></div>
         ) : comments.length === 0 ? (
           <div className={styles.emptyState}>
             <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>No comments yet.</p>
@@ -401,7 +763,13 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
             >
               <div className={styles.commentHeader}>
                 <div className={styles.authorMeta}>
-                  <div className={styles.avatar}>{getInitials(comment.authorDisplayName)}</div>
+                  <div className={styles.avatar}>
+                    {comment.authorAvatarUrl ? (
+                      <img src={comment.authorAvatarUrl} alt="" />
+                    ) : (
+                      getInitials(comment.authorDisplayName)
+                    )}
+                  </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className={styles.authorName}>{comment.authorDisplayName}</span>
@@ -437,7 +805,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                 )}
               </div>
 
-              <p className={styles.commentBody}>{comment.contentText}</p>
+              <CollapsibleRichText content={comment.contentText} className={styles.commentBody} />
 
               <div className={styles.commentFooter}>
                 <div className={styles.commentActions}>
@@ -447,8 +815,32 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       className={`${styles.actionBtn} ${likedMap[comment._id] ? styles.actionBtnLiked : ''}`}
                       onClick={() => handleToggleLike(comment._id)}
                     >
-                      <span>{likedMap[comment._id] ? '❤️' : '🤍'}</span>
+                      {pendingReactionId === comment._id ? <Spinner /> : <Heart size={16} strokeWidth={2} fill={likedMap[comment._id] ? 'currentColor' : 'none'} />}
                       <span>{comment.reactionCount || 0}</span>
+                    </button>
+                  )}
+
+                  {comment.canEdit && editingCommentId !== comment._id && (
+                    <button
+                      type="button"
+                      className={styles.iconActionBtn}
+                      onClick={() => startEditing(comment)}
+                      aria-label="Edit comment"
+                      title="Edit comment"
+                    >
+                      <Pencil size={16} strokeWidth={2} />
+                    </button>
+                  )}
+
+                  {comment.canEdit && (
+                    <button
+                      type="button"
+                      className={styles.iconActionBtn}
+                      onClick={() => setDeleteConfirmComment(comment)}
+                      aria-label="Delete comment"
+                      title="Delete comment"
+                    >
+                      <Trash2 size={16} strokeWidth={2} />
                     </button>
                   )}
 
@@ -459,9 +851,10 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       onClick={() =>
                         setOpenReplyFormId(openReplyFormId === comment._id ? null : comment._id)
                       }
+                      aria-label={openReplyFormId === comment._id ? 'Close reply form' : 'Reply to comment'}
+                      title={openReplyFormId === comment._id ? 'Close reply form' : 'Reply to comment'}
                     >
-                      <span>💬</span>
-                      <span>Reply</span>
+                      <MessageCircle size={16} strokeWidth={2} />
                     </button>
                   )}
 
@@ -469,9 +862,10 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     <button
                       type="button"
                       className={styles.actionBtn}
-                      style={{ color: '#2563eb' }}
                       onClick={() => handleToggleViewReplies(comment._id)}
+                      aria-label={showRepliesMap[comment._id] ? 'Hide replies' : 'View replies'}
                     >
+                      {showRepliesMap[comment._id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       {showRepliesMap[comment._id]
                         ? 'Hide replies'
                         : `View ${comment.replyCount} ${comment.replyCount === 1 ? 'reply' : 'replies'}`}
@@ -511,7 +905,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       disabled={replySubmitting || !replyText.trim()}
                       onClick={() => handleSubmitReply(comment._id)}
                     >
-                      {replySubmitting ? 'Sending...' : 'Send Reply'}
+                      {replySubmitting && <Spinner />}
+                      Send Reply
                     </button>
                   </div>
                 </div>
@@ -531,7 +926,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                           {new Date(reply._createdDate || '').toLocaleDateString()}
                         </span>
                       </div>
-                      <p style={{ margin: 0, color: '#334155' }}>{reply.contentText}</p>
+                      <CollapsibleRichText content={reply.contentText} className={styles.replyBody} />
                     </div>
                   ))}
                 </div>
@@ -540,6 +935,123 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           ))
         )}
       </div>
+
+      {!loading && comments.length > 0 && (
+        <div
+          ref={loadMoreSentinelRef}
+          className={styles.loadMoreSentinel}
+          role="status"
+          aria-live="polite"
+          aria-label={loadingMore ? 'Loading more comments' : hasMore ? 'More comments will load automatically' : 'All comments loaded'}
+        >
+          {loadingMore ? <><Spinner /><span>Loading more comments…</span></> : hasMore ? 'Scroll to load more comments' : 'All comments loaded'}
+        </div>
+      )}
+
+      {editingCommentId && (
+        <div className={styles.dialogBackdrop} onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !savingEdit) cancelEditing();
+        }}>
+          <div
+            ref={editDialogRef}
+            className={styles.editDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-comment-title"
+            tabIndex={-1}
+          >
+            <div className={styles.dialogHeader}>
+              <div>
+                <h3 id="edit-comment-title">Edit comment</h3>
+                <p>Update your comment and save the changes.</p>
+              </div>
+              <button type="button" className={styles.closeDialogBtn} onClick={cancelEditing} disabled={savingEdit} aria-label="Close edit dialog">
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.richTextEditor}>
+              <ReactQuill
+                ref={editingQuillRef}
+                theme="snow"
+                value={editingText}
+                onChange={(value, _delta, _source, editor) => {
+                  const plainText = editor.getText().replace(/\n$/, '');
+                  setEditingText(value);
+                  editingTextRef.current = value;
+                  setEditingLength(plainText.length);
+                }}
+                modules={editingModules}
+              />
+            </div>
+            <div className={styles.editActions}>
+              <span className={styles.charCount}>{editingLength} characters</span>
+              <div className={styles.dialogActions}>
+                <button type="button" className={styles.actionBtn} onClick={cancelEditing} disabled={savingEdit}>
+                  Cancel
+                </button>
+                <button type="button" className={styles.submitBtn} onClick={handleSaveEdit} disabled={savingEdit || !editingLength}>
+                  {savingEdit && <Spinner />}
+                  Save changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmComment && (
+        <div
+          className={styles.dialogBackdrop}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !deletingCommentId) setDeleteConfirmComment(null);
+          }}
+        >
+          <div
+            ref={deleteDialogRef}
+            className={styles.confirmDialog}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-comment-title"
+            aria-describedby="delete-comment-description"
+            tabIndex={-1}
+          >
+            <div className={styles.dialogHeader}>
+              <div>
+                <h3 id="delete-comment-title">Delete comment?</h3>
+                <p id="delete-comment-description">This will remove your comment from the conversation. This action cannot be undone.</p>
+              </div>
+              <button
+                type="button"
+                className={styles.closeDialogBtn}
+                onClick={() => setDeleteConfirmComment(null)}
+                disabled={Boolean(deletingCommentId)}
+                aria-label="Close delete confirmation"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.dialogActions}>
+              <button
+                type="button"
+                className={styles.actionBtn}
+                onClick={() => setDeleteConfirmComment(null)}
+                disabled={Boolean(deletingCommentId)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.deleteBtn}
+                onClick={handleDeleteComment}
+                disabled={Boolean(deletingCommentId)}
+              >
+                {deletingCommentId && <Spinner />}
+                Delete comment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={styles.footerBranding}>Powered by Engage Comments</div>
     </div>
@@ -569,6 +1081,5 @@ export default reactToWebComponent(EngageCommentsWidget, React, ReactDOM as any,
     subtitleFont: 'string',
     bodyFont: 'string',
     buttonFont: 'string',
-    maxChars: 'string',
   },
 });

@@ -7,6 +7,8 @@ export const GET: APIRoute = async () => {
       periodKey: memoryStore.usage.periodKey,
       commentsCreated: memoryStore.usage.commentsCreated,
       commentsLimit: memoryStore.usage.commentsLimit,
+      submissionsLimit: memoryStore.usage.submissionsLimit,
+      publishedCommentsLimit: memoryStore.usage.publishedCommentsLimit,
       planName: memoryStore.usage.planName,
       isPro: memoryStore.usage.isPro,
       status: 'active',
