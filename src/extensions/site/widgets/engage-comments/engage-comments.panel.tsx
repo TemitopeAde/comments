@@ -269,7 +269,7 @@ const Panel: FC = () => {
     <WixDesignSystemProvider>
       <SidePanel width="320" height="100vh">
         <SidePanel.Header
-          title="Engage Comments Settings"
+          title=""
         />
         <SidePanel.Content noPadding stretchVertically>
           <Box width="100%" padding="16px">

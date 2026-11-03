@@ -76,6 +76,28 @@
   min-width: 0;
 }
 
+.composerMeta,
+.ratingInput,
+.replyActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.composerMeta {
+  flex-wrap: wrap;
+}
+
+.ratingInput {
+  gap: 6px;
+}
+
+.replyActions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .inputField {
   width: 100%;
   padding: 10px 12px;
@@ -325,6 +347,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.authorDetails {
+  min-width: 0;
 }
 
 .avatar {
@@ -758,5 +785,76 @@
   .commentHeader {
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .header {
+    margin-bottom: 16px;
+  }
+
+  .ratingOverview,
+  .toolbar,
+  .commentFooter,
+  .replyActions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .toolbar,
+  .commentFooter {
+    gap: 12px;
+  }
+
+  .sortSelect {
+    width: 100%;
+  }
+
+  .commentCard,
+  .composer {
+    padding: 14px;
+  }
+
+  .avatar {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .authorDetails {
+    overflow-wrap: anywhere;
+  }
+
+  .commentHeader > .stars {
+    margin-left: 42px;
+  }
+
+  .commentActions {
+    flex-wrap: wrap;
+  }
+
+  .replyThread {
+    margin-left: 0;
+    padding-left: 12px;
+  }
+
+  .nestedReplies {
+    margin-left: 8px;
+    padding-left: 8px;
+  }
+
+  .replyActions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .replyActions > button {
+    flex: 1 1 0;
+  }
+
+  .richTextEditor :global(.ql-toolbar) {
+    padding: 6px;
+  }
+
+  .richTextEditor :global(.ql-toolbar .ql-formats) {
+    margin-right: 4px;
   }
 }

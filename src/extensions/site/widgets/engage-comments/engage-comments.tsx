@@ -317,6 +317,16 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   const [repliesMap, setRepliesMap] = useState<Record<string, EngageComment[]>>({});
   const [showRepliesMap, setShowRepliesMap] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    if (!isGuestPostingEnabled) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      composerQuillRef.current?.getEditor().focus();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isGuestPostingEnabled]);
+
   const findBlockedWords = useCallback((content: string) => {
     const plainText = getRichTextPlainText(content).toLowerCase();
     return blockedWords.filter((word, index) => (
@@ -447,7 +457,9 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         throw new Error(data.error || 'Failed to submit comment');
       }
 
-      toast.success(data.message || 'Comment posted successfully!');
+      toast.success(data.item?.status === 'pending'
+        ? 'Comment submitted for approval. It will appear once approved.'
+        : data.message || 'Comment posted successfully!');
       setContentText('');
       setContentLength(0);
       fetchComments();
@@ -625,6 +637,12 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         throw new Error(message);
       }
 
+      const submission = await res.json();
+      const awaitingApproval = submission.item?.status === 'pending';
+      toast.success(awaitingApproval
+        ? 'Reply submitted for approval. It will appear once approved.'
+        : 'Reply posted successfully!');
+
       setReplyText('');
       setReplyAuthorName('');
       setShowReplyNameField(false);
@@ -638,8 +656,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         setRepliesMap((prev) => ({ ...prev, [parentId]: data.items || [] }));
         setShowRepliesMap((prev) => ({ ...prev, [commentId]: true }));
       }
-      // Increment replyCount locally
-      setComments((prev) =>
+      // Only published replies contribute to the visible reply count.
+      if (!awaitingApproval) setComments((prev) =>
         prev.map((c) => (c._id === commentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c))
       );
     } catch (e) {
@@ -810,7 +828,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
       {/* Composer */}
       <form className={styles.composer} onSubmit={handleSubmitComment}>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className={styles.composerMeta}>
           {memberResolved && !memberName && !showNameField && (
             <button
               type="button"
@@ -838,7 +856,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           )}
 
           {isRatingsEnabled && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className={styles.ratingInput}>
               <span style={{ fontSize: 13, color: '#64748b' }}>Your Rating:</span>
               <div className={styles.stars}>
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -933,7 +951,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       getInitials(comment.authorDisplayName)
                     )}
                   </div>
-                  <div>
+                  <div className={styles.authorDetails}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className={styles.authorName}>{comment.authorDisplayName}</span>
                       {comment.authorType === 'owner' && (
@@ -1094,7 +1112,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       Blocked terms: {blockedReplyWords.map((word) => <strong key={word}>{word}</strong>)}
                     </div>
                   )}
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <div className={styles.replyActions}>
                     <button
                       type="button"
                       className={styles.actionBtn}

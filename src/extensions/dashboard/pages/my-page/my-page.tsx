@@ -1,74 +1,78 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { httpClient } from '@wix/essentials';
-import { Toaster, toast } from 'sonner';
+import React, { useState, useEffect, useCallback } from "react";
+import { httpClient } from "@wix/essentials";
+import { Toaster, toast } from "sonner";
 import {
-  Page,
-  Card,
-  Box,
-  Text,
-  Heading,
-  Button,
-  IconButton,
-  Badge,
-  Input,
-  FormField,
-  Dropdown,
-  Tabs,
-  SectionHelper,
-  Divider,
-  Search,
-  EmptyState,
-  ToggleSwitch,
-  Loader,
-} from '@wix/design-system';
-import {
-  Check,
-  Dismiss,
-  Delete,
-  Pin,
-  Chat,
-  StarFilled,
+  MessageSquare,
+  LayoutDashboard,
+  ShieldCheck,
+  CreditCard,
+  CircleHelp,
   Download,
-  Refresh,
-} from '@wix/wix-ui-icons-common/lazy';
-import { BusinessManagerTheme } from '../../BusinessManagerTheme';
-import type { EngageComment, WidgetSettings } from '../../../../lib/types';
+  RefreshCw,
+  Check,
+  X,
+  Pin,
+  Trash2,
+  Star,
+  ArrowRight,
+} from "lucide-react";
+import { Button } from "../../components/ui/button";
+import "./dashboard.css";
+import type { EngageComment, WidgetSettings } from "../../../../lib/types";
 
 const { fetchWithAuth } = httpClient;
 const API_ORIGIN = new URL(import.meta.url).origin;
 const apiUrl = (path: string) => new URL(path, API_ORIGIN).toString();
 
 const sanitizeRichText = (html: string) => {
-  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, ' ');
+  if (typeof document === "undefined") return html.replace(/<[^>]*>/g, " ");
 
-  const template = document.createElement('template');
+  const template = document.createElement("template");
   template.innerHTML = html;
-  template.content.querySelectorAll('script,style,iframe,object,embed,form').forEach((node) => node.remove());
-  template.content.querySelectorAll('*').forEach((element) => {
+  template.content
+    .querySelectorAll("script,style,iframe,object,embed,form")
+    .forEach((node) => node.remove());
+  template.content.querySelectorAll("*").forEach((element) => {
     Array.from(element.attributes).forEach((attribute) => {
-      if (attribute.name.toLowerCase().startsWith('on')) element.removeAttribute(attribute.name);
-      if (attribute.name === 'href' && !/^(https?:|mailto:)/i.test(attribute.value)) {
+      if (attribute.name.toLowerCase().startsWith("on"))
+        element.removeAttribute(attribute.name);
+      if (
+        attribute.name === "href" &&
+        !/^(https?:|mailto:)/i.test(attribute.value)
+      ) {
         element.removeAttribute(attribute.name);
       }
-      if (attribute.name === 'src' && !/^(https?:|data:image\/)/i.test(attribute.value)) {
+      if (
+        attribute.name === "src" &&
+        !/^(https?:|data:image\/)/i.test(attribute.value)
+      ) {
         element.removeAttribute(attribute.name);
       }
     });
   });
-  template.content.querySelectorAll('img').forEach((image) => {
-    image.setAttribute('alt', image.getAttribute('alt') || 'Comment image');
-    image.setAttribute('style', 'display:block;max-width:100%;max-height:320px;width:auto;height:auto;object-fit:contain;margin:8px 0;');
+  template.content.querySelectorAll("img").forEach((image) => {
+    image.setAttribute("alt", image.getAttribute("alt") || "Comment image");
+    image.setAttribute(
+      "style",
+      "display:block;max-width:100%;max-height:320px;width:auto;height:auto;object-fit:contain;margin:8px 0;",
+    );
   });
   return template.innerHTML;
 };
 
-const RichTextContent = ({ content, size = 'small' }: { content: string; size?: 'small' | 'medium' }) => (
+const RichTextContent = ({
+  content,
+  size = "small",
+}: {
+  content: string;
+  size?: "small" | "medium";
+}) => (
   <div
     style={{
-      fontSize: size === 'medium' ? 14 : 13,
+      fontSize: size === "medium" ? 14 : 13,
       lineHeight: 1.5,
-      overflowWrap: 'anywhere',
-      color: '#334155',
+      overflowWrap: "anywhere",
+      color: "#334155",
     }}
     dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }}
   />
@@ -95,20 +99,23 @@ interface TrialStatus {
 }
 
 function DashboardApp() {
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [loadError, setLoadError] = useState(false);
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [comments, setComments] = useState<EngageComment[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
   const [replyOpenMap, setReplyOpenMap] = useState<Record<string, boolean>>({});
-  const [trialStatus, setTrialStatus] = useState<TrialStatus>({ available: false });
+  const [trialStatus, setTrialStatus] = useState<TrialStatus>({
+    available: false,
+  });
 
   // Widget settings state
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>({
-    title: 'Comments & Feedback',
-    subtitle: 'Join the conversation and share your verified thoughts',
+    title: "Comments & Feedback",
+    subtitle: "Join the conversation and share your verified thoughts",
     enableComments: true,
     enableReplies: true,
     enableRatings: false,
@@ -117,29 +124,34 @@ function DashboardApp() {
     requireApproval: false,
     maxThreadDepth: 3,
     maxCharacters: 1000,
-    density: 'standard',
-    primaryColor: '#3899ec',
-    backgroundColor: 'transparent',
-    ratingStarColor: '#ffb800',
-    defaultSort: 'newest',
+    density: "standard",
+    primaryColor: "#3899ec",
+    backgroundColor: "transparent",
+    ratingStarColor: "#ffb800",
+    defaultSort: "newest",
     pageSize: 10,
     showAvatars: true,
     showFooterBranding: true,
-    blockedWords: ['spam', 'viagra', 'casino', 'scam'],
+    blockedWords: ["spam", "viagra", "casino", "scam"],
   });
 
-  const [blockedWordsInput, setBlockedWordsInput] = useState<string>('');
-  const [moderationSaveState, setModerationSaveState] = useState<'idle' | 'saving'>('idle');
+  const [blockedWordsInput, setBlockedWordsInput] = useState<string>("");
+  const [moderationSaveState, setModerationSaveState] = useState<
+    "idle" | "saving"
+  >("idle");
 
   const fetchOverview = useCallback(async () => {
     try {
-      const res = await fetchWithAuth(apiUrl('/api/dashboard/overview'));
+      setLoadError(false);
+      const res = await fetchWithAuth(apiUrl("/api/dashboard/overview"));
+      if (!res.ok) throw new Error("Overview unavailable");
       if (res.ok) {
         const data = await res.json();
         setStats(data);
       }
     } catch (e) {
       console.error(e);
+      setLoadError(true);
     }
   }, []);
 
@@ -147,16 +159,20 @@ function DashboardApp() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (searchQuery) params.append('search', searchQuery);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (searchQuery) params.append("search", searchQuery);
 
-      const res = await fetchWithAuth(apiUrl(`/api/dashboard/comments?${params.toString()}`));
+      const res = await fetchWithAuth(
+        apiUrl(`/api/dashboard/comments?${params.toString()}`),
+      );
+      if (!res.ok) throw new Error("Comments unavailable");
       if (res.ok) {
         const data = await res.json();
         setComments(data.items || []);
       }
     } catch (e) {
       console.error(e);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -164,11 +180,17 @@ function DashboardApp() {
 
   const fetchWidgetConfig = useCallback(async () => {
     try {
-      const res = await fetchWithAuth(apiUrl('/api/widgets/engage-comments/public-config'));
+      const res = await fetchWithAuth(
+        apiUrl("/api/widgets/engage-comments/public-config"),
+      );
       if (res.ok) {
         const data = await res.json();
         setWidgetSettings((prev) => ({ ...prev, ...data }));
-        if (Array.isArray(data.blockedWords)) setWidgetSettings((prev) => ({ ...prev, blockedWords: data.blockedWords }));
+        if (Array.isArray(data.blockedWords))
+          setWidgetSettings((prev) => ({
+            ...prev,
+            blockedWords: data.blockedWords,
+          }));
       }
     } catch (e) {
       console.error(e);
@@ -177,7 +199,7 @@ function DashboardApp() {
 
   const fetchTrialStatus = useCallback(async () => {
     try {
-      const res = await fetchWithAuth(apiUrl('/api/dashboard/trial-status'));
+      const res = await fetchWithAuth(apiUrl("/api/dashboard/trial-status"));
       if (res.ok) {
         setTrialStatus(await res.json());
       }
@@ -188,58 +210,65 @@ function DashboardApp() {
 
   useEffect(() => {
     fetchOverview();
-    fetchComments();
     fetchWidgetConfig();
     fetchTrialStatus();
-  }, [fetchOverview, fetchComments, fetchWidgetConfig, fetchTrialStatus]);
+  }, [fetchOverview, fetchWidgetConfig, fetchTrialStatus]);
 
-  const handleModerate = async (commentId: string, action: 'approve' | 'reject' | 'pin' | 'unpin' | 'delete' | 'owner-reply') => {
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  const handleModerate = async (
+    commentId: string,
+    action: "approve" | "reject" | "pin" | "unpin" | "delete" | "owner-reply",
+  ) => {
     try {
       const replyText = replyTextMap[commentId];
-      const res = await fetchWithAuth(apiUrl('/api/dashboard/moderate'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetchWithAuth(apiUrl("/api/dashboard/moderate"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ commentId, action, replyText }),
       });
 
       if (res.ok) {
         fetchComments();
         fetchOverview();
-        const actionLabel = action === 'owner-reply'
-          ? 'Owner reply sent'
-          : action === 'approve'
-            ? 'Comment approved'
-            : action === 'reject'
-              ? 'Comment rejected'
-              : action === 'pin'
-                ? 'Comment pinned'
-                : action === 'unpin'
-                  ? 'Comment unpinned'
-                  : 'Comment deleted';
+        const actionLabel =
+          action === "owner-reply"
+            ? "Owner reply sent"
+            : action === "approve"
+              ? "Comment approved"
+              : action === "reject"
+                ? "Comment rejected"
+                : action === "pin"
+                  ? "Comment pinned"
+                  : action === "unpin"
+                    ? "Comment unpinned"
+                    : "Comment deleted";
         toast.success(`${actionLabel}.`);
-        if (action === 'owner-reply') {
+        if (action === "owner-reply") {
           setReplyOpenMap((prev) => ({ ...prev, [commentId]: false }));
-          setReplyTextMap((prev) => ({ ...prev, [commentId]: '' }));
+          setReplyTextMap((prev) => ({ ...prev, [commentId]: "" }));
         }
       } else {
-        toast.error('Unable to update this comment. Please try again.');
+        toast.error("Unable to update this comment. Please try again.");
       }
     } catch (e) {
       console.error(e);
-      toast.error('Unable to update this comment. Please try again.');
+      toast.error("Unable to update this comment. Please try again.");
     }
   };
 
   const handleSaveModerationRules = async () => {
-    if (moderationSaveState === 'saving') return;
-    setModerationSaveState('saving');
+    if (moderationSaveState === "saving") return;
+    setModerationSaveState("saving");
     try {
       const words = widgetSettings.blockedWords;
-      const res = await fetchWithAuth(apiUrl('/api/dashboard/widgets'), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetchWithAuth(apiUrl("/api/dashboard/widgets"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          widgetKey: 'engage-comments',
+          widgetKey: "engage-comments",
           settings: {
             blockedWords: words,
             requireApproval: widgetSettings.requireApproval,
@@ -249,23 +278,32 @@ function DashboardApp() {
 
       if (res.ok) {
         setWidgetSettings((prev) => ({ ...prev, blockedWords: words }));
-        toast.success('Moderation rules saved.');
+        toast.success("Moderation rules saved.");
       } else {
-        toast.error('Could not save moderation rules. Please try again.');
+        toast.error("Could not save moderation rules. Please try again.");
       }
     } catch (e) {
       console.error(e);
-      toast.error('Could not save moderation rules. Please try again.');
+      toast.error("Could not save moderation rules. Please try again.");
     } finally {
-      setModerationSaveState('idle');
+      setModerationSaveState("idle");
     }
   };
 
   const handleAddBlockedWord = () => {
     const word = blockedWordsInput.trim();
-    if (!word || widgetSettings.blockedWords.some((existing) => existing.toLowerCase() === word.toLowerCase())) return;
-    setWidgetSettings((prev) => ({ ...prev, blockedWords: [...prev.blockedWords, word] }));
-    setBlockedWordsInput('');
+    if (
+      !word ||
+      widgetSettings.blockedWords.some(
+        (existing) => existing.toLowerCase() === word.toLowerCase(),
+      )
+    )
+      return;
+    setWidgetSettings((prev) => ({
+      ...prev,
+      blockedWords: [...prev.blockedWords, word],
+    }));
+    setBlockedWordsInput("");
   };
 
   const handleRemoveBlockedWord = (wordToRemove: string) => {
@@ -277,496 +315,539 @@ function DashboardApp() {
 
   const handleExportCsv = async () => {
     try {
-      const res = await fetchWithAuth(apiUrl('/api/dashboard/export'));
+      const res = await fetchWithAuth(apiUrl("/api/dashboard/export"));
       if (!res.ok) {
-        throw new Error('Failed to export comments');
+        throw new Error("Failed to export comments");
       }
 
       const blobUrl = URL.createObjectURL(await res.blob());
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = blobUrl;
-      link.download = 'engage-comments-export.csv';
+      link.download = "engage-comments-export.csv";
       link.click();
       URL.revokeObjectURL(blobUrl);
-      toast.success('Comments exported successfully.');
+      toast.success("Comments exported successfully.");
     } catch (e) {
       console.error(e);
-      toast.error('Unable to export comments. Please try again.');
+      toast.error("Unable to export comments. Please try again.");
     }
   };
 
-  return (
-    <BusinessManagerTheme>
-      <Toaster position="top-center" richColors />
-      <Page>
-        <Page.Header
-          title="Engage Comments, Reviews & Testimonials"
-          subtitle="Manage user-generated discussions, verify customer reviews, and customize site widgets."
-          actionsBar={
-            <Box gap="8px" verticalAlign="middle">
-              <Button priority="secondary" prefixIcon={<Refresh />} onClick={() => { fetchOverview(); fetchComments(); }}>
-                Refresh
-              </Button>
-              <Button priority="secondary" prefixIcon={<Download />} onClick={handleExportCsv}>
-                Export CSV
-              </Button>
-            </Box>
-          }
-        />
-
-        <Page.Content>
-          <Box direction="vertical" gap="16px">
-            <Tabs
-              activeId={activeTab}
-              onClick={(tab) => setActiveTab(tab.id as string)}
-              items={[
-                { id: 'overview', title: 'Overview' },
-                { id: 'comments', title: `Comments & Reviews (${comments.length})` },
-                { id: 'moderation', title: 'Moderation Rules' },
-                { id: 'plans', title: 'Plans & Usage' },
-                { id: 'help', title: 'Help & Quickstart' },
-              ]}
-            />
-
-            {/* TAB 1: OVERVIEW */}
-            {activeTab === 'overview' && stats && (
-              <Box direction="vertical" gap="16px">
-                <Box gap="16px">
-                  <Card>
-                    <Card.Content>
-                      <Box direction="vertical" gap="4px">
-                        <Text size="small" secondary>Total Submissions</Text>
-                        <Heading size="medium">{stats.totalComments}</Heading>
-                        <Text size="tiny" secondary>Across all site pages</Text>
-                      </Box>
-                    </Card.Content>
-                  </Card>
-
-                  <Card>
-                    <Card.Content>
-                      <Box direction="vertical" gap="4px">
-                        <Text size="small" secondary>Published Comments</Text>
-                        <Heading size="medium">{stats.publishedComments}</Heading>
-                        <Badge skin="success" size="small">Live on site</Badge>
-                      </Box>
-                    </Card.Content>
-                  </Card>
-
-                  <Card>
-                    <Card.Content>
-                      <Box direction="vertical" gap="4px">
-                        <Text size="small" secondary>Pending Moderation</Text>
-                        <Heading size="medium">{stats.pendingModerationCount}</Heading>
-                        {stats.pendingModerationCount > 0 ? (
-                          <Badge skin="warning" size="small">Action needed</Badge>
-                        ) : (
-                          <Badge skin="neutral" size="small">Queue clean</Badge>
-                        )}
-                      </Box>
-                    </Card.Content>
-                  </Card>
-
-                  <Card>
-                    <Card.Content>
-                      <Box direction="vertical" gap="4px">
-                        <Text size="small" secondary>Average Star Rating</Text>
-                        <Box gap="6px" verticalAlign="middle">
-                          <Heading size="medium">{stats.averageRating} / 5</Heading>
-                          <StarFilled style={{ color: '#ffb800', width: 20, height: 20 }} />
-                        </Box>
-                        <Text size="tiny" secondary>{stats.totalReviews} customer reviews</Text>
-                      </Box>
-                    </Card.Content>
-                  </Card>
-                </Box>
-
-                <SectionHelper appearance="standard" title="Site Widget Active">
-                  The Engage Comments custom element widget is ready in the Wix Editor. Drag and drop it onto your blog, product pages, or landing pages.
-                </SectionHelper>
-
-                {/* Recent Activity Card */}
-                <Card>
-                  <Card.Header title="Recent Submissions" subtitle="Latest comments and customer reviews awaiting review or published recently." />
-                  <Card.Content>
-                    {stats.recentActivity.length === 0 ? (
-                      <EmptyState title="No submissions yet" subtitle="When visitors leave comments on your site, they will appear here." />
-                    ) : (
-                      <Box direction="vertical" gap="12px">
-                        {stats.recentActivity.map((item) => (
-                          <Box key={item._id} direction="vertical" gap="6px" padding="12px" style={{ border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-                            <Box align="space-between" verticalAlign="middle">
-                              <Box gap="8px" verticalAlign="middle">
-                                <Text weight="bold">{item.authorDisplayName}</Text>
-                                <Badge size="small" skin={item.authorType === 'owner' ? 'premium' : item.authorType === 'member' ? 'general' : 'neutral'}>
-                                  {item.authorType.toUpperCase()}
-                                </Badge>
-                                {item.rating && (
-                                  <Box gap="2px" verticalAlign="middle">
-                                    <StarFilled style={{ color: '#ffb800', width: 14, height: 14 }} />
-                                    <Text size="small" weight="bold">{item.rating}</Text>
-                                  </Box>
-                                )}
-                              </Box>
-                              <Badge size="small" skin={item.status === 'published' ? 'success' : item.status === 'pending' ? 'warning' : 'danger'}>
-                                {item.status.toUpperCase()}
-                              </Badge>
-                            </Box>
-                            <RichTextContent content={item.contentText} />
-                            <Box align="space-between" verticalAlign="middle">
-                              <Text size="tiny" secondary>{new Date(item._createdDate || '').toLocaleString()}</Text>
-                              <Box gap="8px">
-                                {item.status === 'pending' && (
-                                  <>
-                                    <Button size="tiny" skin="standard" priority="primary" prefixIcon={<Check />} onClick={() => handleModerate(item._id, 'approve')}>
-                                      Approve
-                                    </Button>
-                                    <Button size="tiny" skin="destructive" priority="secondary" prefixIcon={<Dismiss />} onClick={() => handleModerate(item._id, 'reject')}>
-                                      Reject
-                                    </Button>
-                                  </>
-                                )}
-                              </Box>
-                            </Box>
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-                  </Card.Content>
-                </Card>
-              </Box>
-            )}
-
-            {/* TAB 2: COMMENTS & MODERATION TABLE */}
-            {activeTab === 'comments' && (
-              <Card>
-                <Card.Header
-                  title="Comments & Reviews Moderation"
-                  subtitle="Search, filter, approve, pin, or reply to customer discussions."
-                  suffix={
-                    <Box gap="12px" verticalAlign="middle">
-                      <Search
-                        placeholder="Search author or content..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                      <Dropdown
-                        placeholder="Filter Status"
-                        selectedId={statusFilter}
-                        onSelect={(opt) => setStatusFilter(opt.id as string)}
-                        options={[
-                          { id: 'all', value: 'All Statuses' },
-                          { id: 'published', value: 'Published' },
-                          { id: 'pending', value: 'Pending Approval' },
-                          { id: 'rejected', value: 'Rejected' },
-                        ]}
-                      />
-                    </Box>
-                  }
-                />
-                <Card.Content>
-                  {loading ? (
-                    <Text>Loading comments...</Text>
-                  ) : comments.length === 0 ? (
-                    <EmptyState title="No comments match filter" subtitle="Try changing your search term or status filter." />
-                  ) : (
-                    <Box direction="vertical" gap="12px">
-                      {comments.map((comment) => (
-                        <Box
-                          key={comment._id}
-                          direction="vertical"
-                          gap="8px"
-                          padding="16px"
-                          style={{
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            backgroundColor: comment.isPinned ? '#f8fafc' : '#ffffff',
-                          }}
-                        >
-                          <Box align="space-between" verticalAlign="middle">
-                            <Box gap="8px" verticalAlign="middle">
-                              <Text weight="bold" size="medium">{comment.authorDisplayName}</Text>
-                              <Badge size="small" skin={comment.authorType === 'owner' ? 'premium' : comment.authorType === 'member' ? 'general' : 'neutral'}>
-                                {comment.authorType}
-                              </Badge>
-                              {comment.isPinned && (
-                                <Badge size="small" skin="warning">PINNED</Badge>
-                              )}
-                              {comment.rating && (
-                                <Box gap="3px" verticalAlign="middle">
-                                  <StarFilled style={{ color: '#ffb800', width: 14, height: 14 }} />
-                                  <Text size="small" weight="bold">{comment.rating} / 5</Text>
-                                </Box>
-                              )}
-                            </Box>
-                            <Badge size="small" skin={comment.status === 'published' ? 'success' : comment.status === 'pending' ? 'warning' : 'danger'}>
-                              {comment.status.toUpperCase()}
-                            </Badge>
-                          </Box>
-
-                          <RichTextContent content={comment.contentText} size="medium" />
-
-                          <Box align="space-between" verticalAlign="middle">
-                            <Box gap="12px" verticalAlign="middle">
-                              <Text size="tiny" secondary>{new Date(comment._createdDate || '').toLocaleString()}</Text>
-                              <Text size="tiny" secondary>Likes: {comment.reactionCount || 0}</Text>
-                              <Text size="tiny" secondary>Replies: {comment.replyCount || 0}</Text>
-                            </Box>
-
-                            <Box gap="6px" verticalAlign="middle">
-                              {comment.status === 'pending' && (
-                                <Button size="small" skin="standard" priority="primary" prefixIcon={<Check />} onClick={() => handleModerate(comment._id, 'approve')}>
-                                  Approve
-                                </Button>
-                              )}
-                              {comment.status === 'published' && (
-                                <Button size="small" skin="destructive" priority="secondary" prefixIcon={<Dismiss />} onClick={() => handleModerate(comment._id, 'reject')}>
-                                  Unpublish
-                                </Button>
-                              )}
-                              <Button
-                                size="small"
-                                priority="secondary"
-                                prefixIcon={<Pin />}
-                                onClick={() => handleModerate(comment._id, comment.isPinned ? 'unpin' : 'pin')}
-                              >
-                                {comment.isPinned ? 'Unpin' : 'Pin'}
-                              </Button>
-                              <Button
-                                size="small"
-                                priority="secondary"
-                                prefixIcon={<Chat />}
-                                onClick={() => setReplyOpenMap((prev) => ({ ...prev, [comment._id]: !prev[comment._id] }))}
-                              >
-                                Owner Reply
-                              </Button>
-                              <IconButton
-                                size="small"
-                                skin="destructive"
-                                priority="secondary"
-                                onClick={() => handleModerate(comment._id, 'delete')}
-                              >
-                                <Delete />
-                              </IconButton>
-                            </Box>
-                          </Box>
-
-                          {/* Owner Reply Drawer */}
-                          {replyOpenMap[comment._id] && (
-                            <Box direction="vertical" gap="8px" padding="12px" style={{ backgroundColor: '#f9fafb', borderRadius: '6px' }}>
-                              <Text size="small" weight="bold">Reply as Official Site Owner:</Text>
-                              <Input
-                                placeholder="Type your response to this user..."
-                                value={replyTextMap[comment._id] || ''}
-                                onChange={(e) => setReplyTextMap((prev) => ({ ...prev, [comment._id]: e.target.value }))}
-                              />
-                              <Box gap="8px" align="right">
-                                <Button size="small" priority="secondary" onClick={() => setReplyOpenMap((prev) => ({ ...prev, [comment._id]: false }))}>
-                                  Cancel
-                                </Button>
-                                <Button size="small" priority="primary" onClick={() => handleModerate(comment._id, 'owner-reply')}>
-                                  Send Reply
-                                </Button>
-                              </Box>
-                            </Box>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
-                </Card.Content>
-              </Card>
-            )}
-
-            {/* TAB 3: MODERATION RULES */}
-            {activeTab === 'moderation' && (
-              <Card>
-                <Card.Header title="Spam & Automated Moderation Rules" subtitle="Keep your community safe and prevent offensive content." />
-                <Card.Content>
-                  <Box direction="vertical" gap="16px">
-                    <FormField label="Blocked Terms">
-                      <Box direction="vertical" gap="8px">
-                        <Box gap="8px" verticalAlign="middle">
-                          <Input
-                            value={blockedWordsInput}
-                            placeholder="Add a blocked word or phrase"
-                            onChange={(e) => setBlockedWordsInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddBlockedWord();
-                              }
-                            }}
-                          />
-                          <Button priority="secondary" onClick={handleAddBlockedWord}>Add</Button>
-                        </Box>
-                        {widgetSettings.blockedWords.map((word) => (
-                          <Box key={word} align="space-between" verticalAlign="middle">
-                            <Text size="small">{word}</Text>
-                            <Button priority="tertiary" onClick={() => handleRemoveBlockedWord(word)}>Remove</Button>
-                          </Box>
-                        ))}
-                      </Box>
-                    </FormField>
-                    <Text size="tiny" secondary>
-                      Any submissions containing these words will be rejected automatically by the server.
-                    </Text>
-
-                    <Box align="space-between" verticalAlign="middle">
-                      <Box direction="vertical">
-                        <Text weight="bold">Approve comments before publishing</Text>
-                        <Text size="tiny" secondary>New comments and replies remain pending until an admin approves them.</Text>
-                      </Box>
-                      <ToggleSwitch
-                        checked={widgetSettings.requireApproval}
-                        onChange={(event) => setWidgetSettings((prev) => ({ ...prev, requireApproval: event.target.checked }))}
-                      />
-                    </Box>
-
-                    <Divider />
-
-                    <Box align="space-between" verticalAlign="middle">
-                      <Box direction="vertical">
-                        <Text weight="bold">Duplicate Submission Protection</Text>
-                        <Text size="tiny" secondary>Prevent identical comments submitted repeatedly by the same author</Text>
-                      </Box>
-                      <Badge skin="success">Active</Badge>
-                    </Box>
-
-                    <Box align="space-between" verticalAlign="middle">
-                      <Box direction="vertical">
-                        <Text weight="bold">Server-side HTML Sanitization</Text>
-                        <Text size="tiny" secondary>All comments are stripped of dangerous scripts and raw HTML tags</Text>
-                      </Box>
-                      <Badge skin="success">Enforced</Badge>
-                    </Box>
-
+  const tabs = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "comments", label: "Comments & reviews", icon: MessageSquare },
+    { id: "moderation", label: "Moderation rules", icon: ShieldCheck },
+    { id: "plans", label: "Plans & usage", icon: CreditCard },
+    { id: "help", label: "Getting started", icon: CircleHelp },
+  ];
+  const showComments = (items: EngageComment[]) =>
+    items.length === 0 ? (
+      <div className="empty">
+        <MessageSquare size={30} />
+        <h3>No conversations here yet</h3>
+        <p>
+          Visitor comments will appear here. Try another filter if you’re
+          searching.
+        </p>
+      </div>
+    ) : (
+      items.map((item) => (
+        <article className="comment" key={item._id}>
+          <div className="comment-top">
+            <div className="avatar">
+              {item.authorDisplayName?.slice(0, 2).toUpperCase() || "?"}
+            </div>
+            <div className="author">
+              <strong>{item.authorDisplayName}</strong>
+              <span>
+                {item.authorType} ·{" "}
+                {item._createdDate
+                  ? new Date(item._createdDate).toLocaleDateString()
+                  : "Date unavailable"}
+              </span>
+            </div>
+            <span className={"badge " + item.status}>{item.status}</span>
+          </div>
+          <div className="comment-content">
+            <RichTextContent content={item.contentText} size="medium" />
+          </div>
+          <div className="comment-bottom">
+            <span className="muted">
+              {item.rating ? (
+                <>
+                  <Star size={14} /> {item.rating} / 5 ·{" "}
+                </>
+              ) : null}
+              {item.reactionCount || 0} likes · {item.replyCount || 0} replies{" "}
+              {item.isPinned && " · Pinned"}
+            </span>
+            <div className="actions">
+              {item.status === "pending" && (
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => handleModerate(item._id, "approve")}
+                  >
+                    <Check />
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleModerate(item._id, "reject")}
+                  >
+                    Reject
+                  </Button>
+                </>
+              )}
+              {activeTab === "comments" && (
+                <>
+                  {item.status === "published" && (
                     <Button
-                      priority="primary"
-                      onClick={handleSaveModerationRules}
-                      disabled={moderationSaveState === 'saving'}
-                      prefixIcon={moderationSaveState === 'saving' ? <Loader size="tiny" color="white" /> : undefined}
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleModerate(item._id, "reject")}
                     >
-                      {moderationSaveState === 'saving' ? 'Saving…' : 'Save Moderation Rules'}
+                      Unpublish
                     </Button>
-                  </Box>
-                </Card.Content>
-              </Card>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      handleModerate(item._id, item.isPinned ? "unpin" : "pin")
+                    }
+                  >
+                    <Pin />
+                    {item.isPinned ? "Unpin" : "Pin"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-expanded={!!replyOpenMap[item._id]}
+                    onClick={() =>
+                      setReplyOpenMap((prev) => ({
+                        ...prev,
+                        [item._id]: !prev[item._id],
+                      }))
+                    }
+                  >
+                    Reply
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={"Delete comment by " + item.authorDisplayName}
+                    onClick={() => {
+                      if (window.confirm("Permanently delete this comment?"))
+                        handleModerate(item._id, "delete");
+                    }}
+                  >
+                    <Trash2 />
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          {replyOpenMap[item._id] && (
+            <div className="reply">
+              <label htmlFor={"reply-" + item._id}>Reply as site owner</label>
+              <textarea
+                id={"reply-" + item._id}
+                value={replyTextMap[item._id] || ""}
+                onChange={(e) =>
+                  setReplyTextMap((prev) => ({
+                    ...prev,
+                    [item._id]: e.target.value,
+                  }))
+                }
+              />
+              <div className="actions">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setReplyOpenMap((prev) => ({ ...prev, [item._id]: false }))
+                  }
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!replyTextMap[item._id]?.trim()}
+                  onClick={() => handleModerate(item._id, "owner-reply")}
+                >
+                  Send reply
+                </Button>
+              </div>
+            </div>
+          )}
+        </article>
+      ))
+    );
+
+  return (
+    <div className="engage-dashboard">
+      <Toaster position="top-center" richColors />
+      <aside className="sidebar">
+        <div className="brand">
+          <span>
+            <MessageSquare size={20} />
+          </span>
+          engage<span className="brand-dot">.</span>
+        </div>
+        <p className="nav-label">WORKSPACE</p>
+        <nav aria-label="Dashboard">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              aria-current={activeTab === id ? "page" : undefined}
+              onClick={() => setActiveTab(id)}
+            >
+              <Icon size={18} />
+              {label}
+              {id === "comments" && !!stats?.pendingModerationCount && (
+                <span className="nav-count">
+                  {stats.pendingModerationCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-note">
+          <ShieldCheck size={20} />
+          <strong>Your community, cared for.</strong>
+          <p>Make room for meaningful conversations.</p>
+        </div>
+      </aside>
+      <main>
+        <div className="breadcrumb">
+          Workspace <span>/</span> {tabs.find((t) => t.id === activeTab)?.label}
+        </div>
+        <header className="page-header">
+          <div>
+            <p className="eyebrow">COMMENTS & CUSTOMER FEEDBACK</p>
+            <h1>{tabs.find((t) => t.id === activeTab)?.label}</h1>
+            <p>A little conversation goes a long way. Keep yours moving.</p>
+          </div>
+          <div className="actions">
+            <Button
+              variant="outline"
+              aria-label="Refresh dashboard"
+              onClick={() => {
+                fetchOverview();
+                fetchComments();
+              }}
+            >
+              <RefreshCw />
+              Refresh
+            </Button>
+            <Button onClick={handleExportCsv}>
+              <Download />
+              Export CSV
+            </Button>
+          </div>
+        </header>
+        {loadError && (
+          <div role="alert" className="notice">
+            Some dashboard data couldn’t load. Use Refresh to try again.
+          </div>
+        )}
+        {activeTab === "overview" &&
+          (!stats ? (
+            <div role="status" className="empty">
+              {loadError ? "Overview unavailable." : "Loading your overview…"}
+            </div>
+          ) : (
+            <>
+              <section className="stats" aria-label="Community statistics">
+                {[
+                  [
+                    "Total submissions",
+                    stats.totalComments,
+                    "Across your site",
+                    MessageSquare,
+                  ],
+                  [
+                    "Published",
+                    stats.publishedComments,
+                    "Conversations live on site",
+                    Check,
+                  ],
+                  [
+                    "Awaiting review",
+                    stats.pendingModerationCount,
+                    "Ready for your attention",
+                    ShieldCheck,
+                  ],
+                  [
+                    "Average rating",
+                    stats.totalReviews ? stats.averageRating + " / 5" : "—",
+                    stats.totalReviews + " customer reviews",
+                    Star,
+                  ],
+                ].map(([label, value, hint, Icon]) => {
+                  const MetricIcon = Icon as typeof Star;
+                  return (
+                    <div className="metric" key={String(label)}>
+                      <div>
+                        {String(label)}
+                        <MetricIcon size={17} />
+                      </div>
+                      <strong>{String(value)}</strong>
+                      <small>{String(hint)}</small>
+                    </div>
+                  );
+                })}
+              </section>
+              <div className="notice">
+                <ShieldCheck />
+                <div>
+                  <strong>
+                    {stats.pendingModerationCount
+                      ? "Your community is talking."
+                      : "You’re all caught up."}
+                  </strong>
+                  <p>
+                    {stats.pendingModerationCount
+                      ? `${stats.pendingModerationCount} submissions are waiting for your review.`
+                      : "New submissions will appear here as your community grows."}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStatusFilter("pending");
+                    setActiveTab("comments");
+                  }}
+                >
+                  Review queue
+                  <ArrowRight />
+                </Button>
+              </div>
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Recent conversations</h2>
+                    <p>The latest feedback from your community.</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setActiveTab("comments")}
+                  >
+                    View all
+                    <ArrowRight />
+                  </Button>
+                </div>
+                {showComments(stats.recentActivity)}
+              </section>
+            </>
+          ))}
+        {activeTab === "comments" && (
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <h2>All conversations</h2>
+                <p>
+                  Review feedback, join discussions, and highlight great
+                  contributions.
+                </p>
+              </div>
+            </div>
+            <div className="filters">
+              <input
+                aria-label="Search comments"
+                type="search"
+                placeholder="Search author or content…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <select
+                aria-label="Filter status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending approval</option>
+                <option value="published">Published</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            {loading ? (
+              <div className="empty" role="status">
+                Loading conversations…
+              </div>
+            ) : (
+              showComments(comments)
             )}
-
-            {/* TAB 5: PLANS & USAGE */}
-            {activeTab === 'plans' && stats && (
-              <Box direction="vertical" gap="16px">
-                <Card>
-                  <Card.Header title="Current Subscription & Quotas" subtitle="Check your active plan limits and upgrades." />
-                  <Card.Content>
-                    <Box direction="vertical" gap="16px">
-                      <Box align="space-between" verticalAlign="middle">
-                        <Box direction="vertical">
-                          <Heading size="small">Active Tier: {stats.plan}</Heading>
-                          <Text size="small" secondary>Full access to multi-widget configurations, moderation, and CSV export.</Text>
-                        </Box>
-                        <Badge skin={stats.plan === 'Pro' ? 'premium' : 'neutral'} size="medium">{stats.plan.toUpperCase()} ACTIVE</Badge>
-                      </Box>
-
-                      <Divider />
-
-                      {trialStatus.available && trialStatus.upgradeUrl && (
-                        <SectionHelper appearance="standard" title="Try Pro free">
-                          Start your free trial to unlock advanced widgets, ratings, exports, and customization.
-                          <Box marginTop="8px">
-                            <Button
-                              priority="primary"
-                              onClick={() => window.open(trialStatus.upgradeUrl, '_blank', 'noopener,noreferrer')}
-                            >
-                              Start free trial
-                            </Button>
-                          </Box>
-                        </SectionHelper>
-                      )}
-
-                      <Box direction="vertical" gap="6px">
-                        <Box align="space-between">
-                          <Text size="small">Monthly Comment Volume</Text>
-                          <Text size="small" weight="bold">{stats.usage.commentsCreated} / {stats.usage.commentsLimit}</Text>
-                        </Box>
-                        <Box style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                          <Box style={{ width: `${Math.min(100, (stats.usage.commentsCreated / stats.usage.commentsLimit) * 100)}%`, height: '100%', backgroundColor: '#3899ec' }} />
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Card.Content>
-                </Card>
-
-                <Box gap="16px">
-                  <Card>
-                    <Card.Header title="Free Plan" subtitle="Starter feedback features" />
-                    <Card.Content>
-                      <Box direction="vertical" gap="8px">
-                        <Text size="small">✓ 1 Active Widget</Text>
-                        <Text size="small">✓ Standard Comments & Replies</Text>
-                        <Text size="small">✓ Up to 100 Comments / Month</Text>
-                        <Text size="small" secondary>✗ CSV Export</Text>
-                        <Text size="small" secondary>✗ Custom Themes & Colors</Text>
-                      </Box>
-                    </Card.Content>
-                  </Card>
-
-                  <Card>
-                    <Card.Header title="Pro Plan" subtitle="For scaling businesses & communities" />
-                    <Card.Content>
-                      <Box direction="vertical" gap="8px">
-                        <Text size="small">✓ Unlimited Widgets</Text>
-                        <Text size="small">✓ Star Ratings & Review Displays</Text>
-                        <Text size="small">✓ Up to 5,000 Comments / Month</Text>
-                        <Text size="small">✓ Instant CSV Export</Text>
-                        <Text size="small">✓ Full Color & Typography Customizer</Text>
-                        <Text size="small">✓ Official Site Owner Replies</Text>
-                      </Box>
-                    </Card.Content>
-                  </Card>
-                </Box>
-              </Box>
-            )}
-
-            {/* TAB 6: HELP & QUICKSTART */}
-            {activeTab === 'help' && (
-              <Card>
-                <Card.Header title="Help & Getting Started" subtitle="Everything you need to successfully launch community discussions." />
-                <Card.Content>
-                  <Box direction="vertical" gap="16px">
-                    <Box direction="vertical" gap="4px">
-                      <Heading size="small">1. Add the widget in Wix Studio / Editor</Heading>
-                      <Text size="small">
-                        Go to your Wix Site Editor, click <strong>Add Elements &gt; App Widgets</strong>, and select <strong>Engage Comments</strong>. Place it on any page where you want visitor feedback.
-                      </Text>
-                    </Box>
-
-                    <Divider />
-
-                    <Box direction="vertical" gap="4px">
-                      <Heading size="small">2. Customize through the Editor Panel or Dashboard</Heading>
-                      <Text size="small">
-                        Select the widget in the Wix Editor to adjust its title, guest access, ratings, replies, reactions, and colors in the widget settings panel.
-                      </Text>
-                    </Box>
-
-                    <Divider />
-
-                    <Box direction="vertical" gap="4px">
-                      <Heading size="small">3. Moderate submissions seamlessly</Heading>
-                      <Text size="small">
-                        Enable "Require Moderation" under Moderation Rules if you want to review all visitor submissions before they become visible to the public. You can approve or pin comments with a single click.
-                      </Text>
-                    </Box>
-                  </Box>
-                </Card.Content>
-              </Card>
-            )}
-          </Box>
-        </Page.Content>
-      </Page>
-    </BusinessManagerTheme>
+          </section>
+        )}
+        {activeTab === "moderation" && (
+          <section className="panel settings">
+            <h2>A welcoming space starts here</h2>
+            <p>Set the ground rules for your community.</p>
+            <div className="setting-row">
+              <div>
+                <h3>Review before publishing</h3>
+                <p>Hold new comments and replies until you approve them.</p>
+              </div>
+              <input
+                className="switch"
+                type="checkbox"
+                role="switch"
+                aria-label="Require approval"
+                checked={widgetSettings.requireApproval}
+                onChange={(e) =>
+                  setWidgetSettings((prev) => ({
+                    ...prev,
+                    requireApproval: e.target.checked,
+                  }))
+                }
+              />
+            </div>
+            <div className="setting-row vertical">
+              <label htmlFor="blocked-word">Blocked words & phrases</label>
+              <p>
+                Submissions containing these terms are automatically rejected.
+              </p>
+              <div className="filters">
+                <input
+                  id="blocked-word"
+                  placeholder="Add a word or phrase"
+                  value={blockedWordsInput}
+                  onChange={(e) => setBlockedWordsInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddBlockedWord();
+                    }
+                  }}
+                />
+                <Button variant="outline" onClick={handleAddBlockedWord}>
+                  Add term
+                </Button>
+              </div>
+              <div className="terms">
+                {widgetSettings.blockedWords.map((word) => (
+                  <span className="badge" key={word}>
+                    {word}
+                    <button
+                      aria-label={"Remove " + word}
+                      onClick={() => handleRemoveBlockedWord(word)}
+                    >
+                      <X size={14} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+            {[
+              "Duplicate submission protection",
+              "Server-side HTML sanitization",
+            ].map((label) => (
+              <div className="setting-row" key={label}>
+                <strong>{label}</strong>
+                <span className="badge published">Active</span>
+              </div>
+            ))}
+            <Button
+              disabled={moderationSaveState === "saving"}
+              onClick={handleSaveModerationRules}
+            >
+              {moderationSaveState === "saving"
+                ? "Saving…"
+                : "Save moderation rules"}
+            </Button>
+          </section>
+        )}
+        {activeTab === "plans" &&
+          (stats ? (
+            <section className="panel settings">
+              <span className="badge">YOUR SUBSCRIPTION</span>
+              <h2>{stats.plan} plan</h2>
+              <p>Keep an eye on your community’s monthly usage.</p>
+              <div className="setting-row">
+                <strong>Monthly comments</strong>
+                <span>
+                  {stats.usage.commentsCreated} / {stats.usage.commentsLimit}
+                </span>
+              </div>
+              <progress
+                aria-label="Monthly comment usage"
+                max={Math.max(1, stats.usage.commentsLimit)}
+                value={stats.usage.commentsCreated}
+              />
+              <div className="plan-grid">
+                <div>
+                  <h3>Free</h3>
+                  <p>For starting a conversation.</p>
+                  <ul>
+                    <li>1 active widget</li>
+                    <li>Comments & replies</li>
+                    <li>100 comments per month</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3>Pro</h3>
+                  <p>For growing communities.</p>
+                  <ul>
+                    <li>Unlimited widgets</li>
+                    <li>Star ratings & reviews</li>
+                    <li>5,000 comments per month</li>
+                    <li>CSV exports & custom themes</li>
+                    <li>Official owner replies</li>
+                  </ul>
+                </div>
+              </div>
+              {trialStatus.available && trialStatus.upgradeUrl && (
+                <Button
+                  onClick={() =>
+                    window.open(
+                      trialStatus.upgradeUrl,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                >
+                  Start free trial
+                  <ArrowRight />
+                </Button>
+              )}
+            </section>
+          ) : (
+            <p role="status">
+              {loadError ? "Plan information unavailable." : "Loading plan…"}
+            </p>
+          ))}
+        {activeTab === "help" && (
+          <section className="panel settings">
+            <h2>Your first conversation starts here</h2>
+            <p>Three steps to bringing your community together.</p>
+            {[
+              [
+                "Add your widget",
+                "In your Wix Site Editor, open Add Elements → App Widgets and select Engage Comments. Place it on a page where you want feedback.",
+              ],
+              [
+                "Make it yours",
+                "Select the widget in the editor to adjust its title, guest access, ratings, replies, reactions, and colors.",
+              ],
+              [
+                "Set your community rules",
+                "Use Moderation rules to require approval and block unwanted terms. Review, pin, and reply to submissions in Comments & reviews.",
+              ],
+            ].map(([title, description], index) => (
+              <div className="help-step" key={title}>
+                <span>{index + 1}</span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+        <footer>Engage · Better conversations. Stronger communities.</footer>
+      </main>
+    </div>
   );
-};
-
+}
 export default DashboardApp;

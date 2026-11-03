@@ -8,7 +8,7 @@ export default extensions.customElement({
     allowStretch: true
   },
   height: {
-    defaultHeight: 250
+    defaultHeight: 560
   },
   installation: {
     autoAdd: true

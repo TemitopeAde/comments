@@ -15,6 +15,7 @@
     "typecheck": "astro check"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.5.0",
     "@wix/app-management": "^1.0.172",
     "@wix/app-tools": "^1.0.7",
     "@wix/astro": "^2.75.3",
@@ -29,12 +30,14 @@
     "@wix/react-component-utils": "^1.15.0",
     "@wix/wix-ui-icons-common": "^3.191.2",
     "astro": "^5.8.0",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "deepmerge-ts": "^8.0.2",
     "lucide-react": "^1.61.0",
     "react-quill": "^2.0.0",
     "react-to-webcomponent": "^2.0.1",
     "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
