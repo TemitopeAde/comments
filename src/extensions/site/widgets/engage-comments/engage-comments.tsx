@@ -8,6 +8,13 @@ import 'react-quill/dist/quill.snow.css';
 import { Heart, MessageCircle, Pencil, Trash2, ChevronDown, ChevronUp, LoaderCircle, X } from 'lucide-react';
 import styles from './engage-comments.module.css';
 import type { EngageComment } from '../../../../lib/types';
+import {
+  resolveLocale,
+  getLocaleDirection,
+  getTranslation,
+  formatDate,
+  type LocaleKey,
+} from '../../../../lib/locales/translations';
 
 const DEFAULT_FONT = '16px helvetica-w01-roman';
 const COMMENTS_PAGE_SIZE = 20;
@@ -65,7 +72,17 @@ const getRichTextPreview = (html: string, maxLength: number) => {
   return container.innerHTML;
 };
 
-const CollapsibleRichText = ({ content, className }: { content: string; className?: string }) => {
+const CollapsibleRichText = ({
+  content,
+  className,
+  seeMoreText = 'See more',
+  seeLessText = 'See less',
+}: {
+  content: string;
+  className?: string;
+  seeMoreText?: string;
+  seeLessText?: string;
+}) => {
   const [expanded, setExpanded] = useState(false);
   const plainText = getRichTextPlainTextForEditor(content);
   const isLong = plainText > COMMENT_PREVIEW_LENGTH;
@@ -85,7 +102,7 @@ const CollapsibleRichText = ({ content, className }: { content: string; classNam
           onClick={() => setExpanded((current) => !current)}
           aria-expanded={expanded}
         >
-          {expanded ? 'See less' : 'See more'}
+          {expanded ? seeLessText : seeMoreText}
         </button>
       )}
     </>
@@ -105,9 +122,9 @@ const getRichTextPlainTextForEditor = (html: string) => {
 
 const Spinner = () => <LoaderCircle className={styles.spinner} size={16} aria-hidden="true" />;
 
-const compressImage = (file: File) => new Promise<string>((resolve, reject) => {
+const compressImage = (file: File, t: (key: LocaleKey) => string) => new Promise<string>((resolve, reject) => {
   if (!file.type.startsWith('image/')) {
-    reject(new Error('Please choose an image file.'));
+    reject(new Error(t('chooseImageFile')));
     return;
   }
 
@@ -121,7 +138,7 @@ const compressImage = (file: File) => new Promise<string>((resolve, reject) => {
     canvas.height = Math.max(1, Math.round(image.height * scale));
     const context = canvas.getContext('2d');
     if (!context) {
-      reject(new Error('This image could not be processed.'));
+      reject(new Error(t('imageProcessingError')));
       return;
     }
 
@@ -134,14 +151,14 @@ const compressImage = (file: File) => new Promise<string>((resolve, reject) => {
     }
 
     if (dataUrl.length > MAX_IMAGE_BYTES * 1.37) {
-      reject(new Error('That image is too large. Please choose a smaller image.'));
+      reject(new Error(t('imageTooLarge')));
       return;
     }
     resolve(dataUrl);
   };
   image.onerror = () => {
     URL.revokeObjectURL(objectUrl);
-    reject(new Error('This image could not be loaded.'));
+    reject(new Error(t('imageNotLoaded')));
   };
   image.src = objectUrl;
 });
@@ -170,6 +187,7 @@ interface WidgetProps {
   buttonFont?: string;
   editorToolbar?: string;
   editorPlaceholder?: string;
+  language?: string;
 }
 
 type EditorToolbarOptions = {
@@ -198,8 +216,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   widgetKey = 'engage-comments',
   targetType = 'generalPage',
   targetReference = 'home',
-  title = 'Comments & Feedback',
-  subtitle = 'Join the conversation and share your verified thoughts',
+  title,
+  subtitle,
   primaryColor = '#3899ec',
   starColor = '#ffb800',
   titleColor = '#0f172a',
@@ -216,8 +234,20 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   bodyFont,
   buttonFont,
   editorToolbar,
-  editorPlaceholder = 'Share your comments, questions, or reviews...',
+  editorPlaceholder,
+  language = 'auto',
 }) => {
+  const currentLocale = useMemo(() => resolveLocale(language), [language]);
+  const direction = useMemo(() => getLocaleDirection(currentLocale), [currentLocale]);
+  const t = useCallback(
+    (key: LocaleKey, params?: Record<string, string | number>) => getTranslation(currentLocale, key, params),
+    [currentLocale]
+  );
+
+  const displayTitle = title && title !== 'Comments & Feedback' ? title : t('comments');
+  const displaySubtitle = subtitle && subtitle !== 'Join the conversation and share your verified thoughts' ? subtitle : t('discussionSubtitle');
+  const displayEditorPlaceholder = editorPlaceholder && editorPlaceholder !== 'Share your comments, questions, or reviews...' ? editorPlaceholder : t('writeYourThought');
+
   const isRatingsEnabled = enableRatings !== 'false';
   const isRepliesEnabled = enableReplies !== 'false';
   const isReactionsEnabled = enableReactions !== 'false';
@@ -381,7 +411,6 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       const res = await httpClient.fetchWithAuth(apiUrl(`/api/comments?${params.toString()}`));
       if (res.ok) {
         const data = await res.json();
-        // Ignore a slower response from a previous sort or refresh request.
         if (requestId !== commentsRequestRef.current) return;
         const items = (data.items || []) as EngageComment[];
         setComments((previous) => {
@@ -445,7 +474,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           widgetKey,
           targetType,
           targetReference,
-          authorDisplayName: memberName || authorName.trim() || 'Guest Visitor',
+          authorDisplayName: memberName || authorName.trim() || t('guestVisitor'),
           contentText: contentText.trim(),
           rating: isRatingsEnabled ? rating : null,
           clientSessionId: actorKey,
@@ -454,17 +483,17 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit comment');
+        throw new Error(data.error || t('postCommentError'));
       }
 
       toast.success(data.item?.status === 'pending'
-        ? 'Comment submitted for approval. It will appear once approved.'
-        : data.message || 'Comment posted successfully!');
+        ? t('commentPending')
+        : t('commentPosted'));
       setContentText('');
       setContentLength(0);
       fetchComments();
     } catch (err: any) {
-      toast.error(err.message || 'Unable to post your comment. Please try again.');
+      toast.error(err.message || t('postCommentError'));
     } finally {
       setSubmitting(false);
     }
@@ -537,16 +566,16 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         body: JSON.stringify({ contentText: editingTextRef.current, clientSessionId: actorKey }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to update comment');
+      if (!response.ok) throw new Error(data.error || t('updateCommentError'));
 
       setComments((previous) => previous.map((comment) =>
         comment._id === editingCommentId ? { ...comment, ...data.item } : comment,
       ));
       await fetchComments();
-      toast.success('Comment updated successfully.');
+      toast.success(t('commentUpdated'));
       cancelEditing();
     } catch (error: any) {
-      toast.error(error.message || 'Unable to update your comment. Please try again.');
+      toast.error(error.message || t('updateCommentError'));
     } finally {
       setSavingEdit(false);
     }
@@ -562,7 +591,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         { method: 'DELETE' },
       );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to delete comment');
+      if (!response.ok) throw new Error(data.error || t('deleteCommentError'));
 
       setComments((previous) => {
         const next = previous.filter((comment) => comment._id !== deleteConfirmComment._id);
@@ -571,9 +600,9 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       });
       setTotalCount((count) => Math.max(0, count - 1));
       setDeleteConfirmComment(null);
-      toast.success('Comment deleted.');
+      toast.success(t('commentDeleted'));
     } catch (error: any) {
-      toast.error(error.message || 'Unable to delete your comment. Please try again.');
+      toast.error(error.message || t('deleteCommentError'));
     } finally {
       setDeletingCommentId(null);
     }
@@ -620,19 +649,19 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           widgetKey,
-          authorDisplayName: memberName || replyAuthorName.trim() || 'Guest Visitor',
+          authorDisplayName: memberName || replyAuthorName.trim() || t('guestVisitor'),
           contentText: replyText,
           clientSessionId: actorKey,
         }),
       });
 
       if (!res.ok) {
-        let message = 'Unable to post your reply. Please try again.';
+        let message = t('postReplyError');
         try {
           const data = await res.json();
           if (typeof data?.error === 'string' && data.error) message = data.error;
         } catch {
-          // Use the fallback message when the API response is not JSON.
+          // Use localized fallback
         }
         throw new Error(message);
       }
@@ -640,8 +669,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       const submission = await res.json();
       const awaitingApproval = submission.item?.status === 'pending';
       toast.success(awaitingApproval
-        ? 'Reply submitted for approval. It will appear once approved.'
-        : 'Reply posted successfully!');
+        ? t('replyPending')
+        : t('replyPosted'));
 
       setReplyText('');
       setReplyAuthorName('');
@@ -649,20 +678,18 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       setOpenReplyFormId(null);
       setReplyingToId(null);
       setReplyEditorReady(false);
-      // Refresh replies for the comment or reply being answered.
       const repliesRes = await httpClient.fetchWithAuth(apiUrl(`/api/comments/${parentId}/replies?clientSessionId=${encodeURIComponent(actorKey)}`));
       if (repliesRes.ok) {
         const data = await repliesRes.json();
         setRepliesMap((prev) => ({ ...prev, [parentId]: data.items || [] }));
         setShowRepliesMap((prev) => ({ ...prev, [commentId]: true }));
       }
-      // Only published replies contribute to the visible reply count.
       if (!awaitingApproval) setComments((prev) =>
         prev.map((c) => (c._id === commentId ? { ...c, replyCount: (c.replyCount || 0) + 1 } : c))
       );
     } catch (e) {
       console.error(e);
-      toast.error(e instanceof Error ? e.message : 'Unable to post your reply. Please try again.');
+      toast.error(e instanceof Error ? e.message : t('postReplyError'));
     } finally {
       setReplySubmitting(false);
     }
@@ -673,13 +700,18 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <span style={{ fontWeight: 600 }}>{reply.authorDisplayName}</span>
         {reply.authorType === 'owner' && (
-          <span className={`${styles.badge} ${styles.badgeOwner}`}>Site Owner</span>
+          <span className={`${styles.badge} ${styles.badgeOwner}`}>{t('ownerBadge')}</span>
         )}
         <span style={{ fontSize: 11, color: '#94a3b8' }}>
-          {new Date(reply._createdDate || '').toLocaleDateString()}
+          {formatDate(reply._createdDate, currentLocale)}
         </span>
       </div>
-      <CollapsibleRichText content={reply.contentText} className={styles.replyBody} />
+      <CollapsibleRichText
+        content={reply.contentText}
+        className={styles.replyBody}
+        seeMoreText={t('seeMore')}
+        seeLessText={t('seeLess')}
+      />
       {isRepliesEnabled && (
         <button
           type="button"
@@ -690,7 +722,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
             setReplyEditorReady(false);
             void loadReplies(reply._id);
           }}
-          aria-label={`Reply to ${reply.authorDisplayName}`}
+          aria-label={t('replyTo', { name: reply.authorDisplayName })}
         >
           <MessageCircle size={14} strokeWidth={2} />
         </button>
@@ -722,17 +754,17 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       if (!file) return;
 
       try {
-        const dataUrl = await compressImage(file);
+        const dataUrl = await compressImage(file, t);
         const editor = quillRef.getEditor();
         const range = editor.getSelection(true);
         editor.insertEmbed(range?.index ?? editor.getLength(), 'image', dataUrl, 'user');
         editor.setSelection((range?.index ?? editor.getLength()) + 1, 0, 'silent');
       } catch (error: any) {
-        toast.error(error.message || 'Unable to add that image.');
+        toast.error(error.message || t('imageUploadError'));
       }
     };
     input.click();
-  }, []);
+  }, [t]);
 
   const toolbarContainer = useMemo(() => {
     const formatting = ['bold', 'italic', 'underline'].filter((tool) => toolbarOptions[tool as keyof EditorToolbarOptions]);
@@ -749,9 +781,6 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
     return [formatting, lists, inserts].filter((group) => group.length > 0);
   }, [toolbarOptions]);
 
-  // Keep the module configuration stable. ReactQuill tears down and rebuilds
-  // the editor when this object changes, which can make the toolbar disappear
-  // while the widget is receiving async data or being updated by Wix.
   const composerModules = useMemo(() => ({
     toolbar: {
       container: toolbarContainer,
@@ -789,6 +818,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   return (
     <div
       className={styles.root}
+      dir={direction}
       style={
         {
           '--primary-color': primaryColor,
@@ -806,8 +836,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
       {/* Header */}
       <div className={styles.header}>
-        <h2 className={styles.title} style={{ fontFamily: titleFontFamily }}>{title}</h2>
-        {subtitle && <p className={styles.subtitle} style={{ fontFamily: subtitleFontFamily }}>{subtitle}</p>}
+        <h2 className={styles.title} style={{ fontFamily: titleFontFamily }}>{displayTitle}</h2>
+        {displaySubtitle && <p className={styles.subtitle} style={{ fontFamily: subtitleFontFamily }}>{displaySubtitle}</p>}
         {isRatingsEnabled && totalReviews > 0 && (
           <div className={styles.ratingOverview}>
             <div className={styles.stars}>
@@ -821,7 +851,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               ))}
             </div>
             <span style={{ fontWeight: 700, fontSize: 15 }}>{averageRating.toFixed(1)}</span>
-            <span style={{ color: '#64748b', fontSize: 13 }}>({totalReviews} customer reviews)</span>
+            <span style={{ color: '#64748b', fontSize: 13 }}>({totalReviews} {t('customerReviews')})</span>
           </div>
         )}
       </div>
@@ -838,7 +868,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               aria-expanded="false"
               aria-controls="comment-name"
             >
-              Add a name <span>(optional)</span>
+              {t('addNameOptional')}
             </button>
           )}
 
@@ -848,7 +878,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               type="text"
               className={styles.inputField}
               style={{ flex: 1, minWidth: 200 }}
-              placeholder="Your name or nickname"
+              placeholder={t('yourName')}
               value={authorName}
               onChange={(e) => setAuthorName(e.target.value)}
               disabled={!isGuestPostingEnabled}
@@ -857,7 +887,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
           {isRatingsEnabled && (
             <div className={styles.ratingInput}>
-              <span style={{ fontSize: 13, color: '#64748b' }}>Your Rating:</span>
+              <span style={{ fontSize: 13, color: '#64748b' }}>{t('yourRating')}</span>
               <div className={styles.stars}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
@@ -867,7 +897,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     onClick={() => setRating(star)}
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(0)}
-                    aria-label={`Rate ${star} stars`}
+                    aria-label={star === 1 ? t('rateStarSingle', { star }) : t('rateStarPlural', { star })}
                     aria-pressed={rating === star}
                   >
                     ★
@@ -888,24 +918,24 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               setContentText(value);
               setContentLength(plainText.length);
             }}
-            placeholder={editorPlaceholder}
+            placeholder={displayEditorPlaceholder}
             readOnly={!isGuestPostingEnabled}
             modules={composerModules}
           />
         </div>
         {blockedCommentWords.length > 0 && (
           <div className={styles.blockedTermMessage} role="alert">
-            Blocked terms: {blockedCommentWords.map((word) => <strong key={word}>{word}</strong>)}
+            {t('blockedTerms')} {blockedCommentWords.map((word) => <strong key={word}>{word}</strong>)}
           </div>
         )}
 
         <div className={styles.composerActions}>
           <span className={styles.charCount}>
-            {contentLength} characters
+            {contentLength} {t('characters')}
           </span>
           <button type="submit" className={styles.submitBtn} disabled={!isGuestPostingEnabled || submitting || !contentLength}>
             {submitting && <Spinner />}
-            {!isGuestPostingEnabled ? 'Guest posting disabled' : 'Post Comment'}
+            {!isGuestPostingEnabled ? t('guestPostingDisabled') : submitting ? t('posting') : t('postComment')}
           </button>
         </div>
       </form>
@@ -913,28 +943,28 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
       {/* Toolbar / Sort */}
       <div className={styles.toolbar}>
         <span style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>
-          {totalCount} {totalCount === 1 ? 'Comment' : 'Comments'}
+          {totalCount} {totalCount === 1 ? t('commentSingular') : t('comments')}
         </span>
         <select
           className={styles.sortSelect}
           value={sort}
           onChange={(e) => setSort(e.target.value as any)}
-          aria-label="Sort comments"
+          aria-label={t('sortBy')}
         >
-          <option value="newest">Newest First</option>
-          <option value="oldest">Oldest First</option>
-          <option value="most-liked">Most Liked</option>
+          <option value="newest">{t('newestFirst')}</option>
+          <option value="oldest">{t('oldestFirst')}</option>
+          <option value="most-liked">{t('mostLiked')}</option>
         </select>
       </div>
 
       {/* Comment List */}
       <div className={styles.commentsList}>
         {loading ? (
-          <div className={styles.emptyState} role="status" aria-live="polite" aria-label="Loading comments"><Spinner /></div>
+          <div className={styles.emptyState} role="status" aria-live="polite" aria-label={t('loading')}><Spinner /></div>
         ) : comments.length === 0 ? (
           <div className={styles.emptyState}>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>No comments yet.</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: 13 }}>Be the first to share your thoughts!</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{t('emptyState')}</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: 13 }}>{t('beTheFirst')}</p>
           </div>
         ) : (
           comments.map((comment) => (
@@ -955,24 +985,20 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className={styles.authorName}>{comment.authorDisplayName}</span>
                       {comment.authorType === 'owner' && (
-                        <span className={`${styles.badge} ${styles.badgeOwner}`}>Site Owner</span>
+                        <span className={`${styles.badge} ${styles.badgeOwner}`}>{t('ownerBadge')}</span>
                       )}
                       {comment.isPinned && (
-                        <span className={`${styles.badge} ${styles.badgePinned}`}>Pinned</span>
+                        <span className={`${styles.badge} ${styles.badgePinned}`}>{t('pinned')}</span>
                       )}
                     </div>
                     <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                      {new Date(comment._createdDate || '').toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {formatDate(comment._createdDate, currentLocale)}
                     </span>
                   </div>
                 </div>
 
                 {isRatingsEnabled && comment.rating && (
-                  <div className={styles.stars}>
+                  <div className={styles.stars} role="img" aria-label={t('ratingOutOf', { rating: comment.rating })}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <span
                         key={star}
@@ -986,7 +1012,12 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                 )}
               </div>
 
-              <CollapsibleRichText content={comment.contentText} className={styles.commentBody} />
+              <CollapsibleRichText
+                content={comment.contentText}
+                className={styles.commentBody}
+                seeMoreText={t('seeMore')}
+                seeLessText={t('seeLess')}
+              />
 
               <div className={styles.commentFooter}>
                 <div className={styles.commentActions}>
@@ -995,6 +1026,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       type="button"
                       className={`${styles.actionBtn} ${likedMap[comment._id] ? styles.actionBtnLiked : ''}`}
                       onClick={() => handleToggleLike(comment._id)}
+                      aria-label={likedMap[comment._id] ? t('liked') : t('like')}
                     >
                       {pendingReactionId === comment._id ? <Spinner /> : <Heart size={16} strokeWidth={2} fill={likedMap[comment._id] ? 'currentColor' : 'none'} />}
                       <span>{comment.reactionCount || 0}</span>
@@ -1006,8 +1038,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       type="button"
                       className={styles.iconActionBtn}
                       onClick={() => startEditing(comment)}
-                      aria-label="Edit comment"
-                      title="Edit comment"
+                      aria-label={t('editComment')}
+                      title={t('editComment')}
                     >
                       <Pencil size={16} strokeWidth={2} />
                     </button>
@@ -1018,8 +1050,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       type="button"
                       className={styles.iconActionBtn}
                       onClick={() => setDeleteConfirmComment(comment)}
-                      aria-label="Delete comment"
-                      title="Delete comment"
+                      aria-label={t('deleteComment')}
+                      title={t('deleteComment')}
                     >
                       <Trash2 size={16} strokeWidth={2} />
                     </button>
@@ -1037,8 +1069,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                           setReplyEditorReady(false);
                         })()
                       }
-                      aria-label={openReplyFormId === comment._id && replyingToId === comment._id ? 'Close reply form' : 'Reply to comment'}
-                      title={openReplyFormId === comment._id && replyingToId === comment._id ? 'Close reply form' : 'Reply to comment'}
+                      aria-label={openReplyFormId === comment._id && replyingToId === comment._id ? t('closeReplyForm') : t('reply')}
+                      title={openReplyFormId === comment._id && replyingToId === comment._id ? t('closeReplyForm') : t('reply')}
                     >
                       <MessageCircle size={16} strokeWidth={2} />
                     </button>
@@ -1049,12 +1081,15 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       type="button"
                       className={styles.actionBtn}
                       onClick={() => handleToggleViewReplies(comment._id)}
-                      aria-label={showRepliesMap[comment._id] ? 'Hide replies' : 'View replies'}
+                      aria-label={showRepliesMap[comment._id] ? t('hideReplies') : t('viewReplies')}
                     >
                       {showRepliesMap[comment._id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       {showRepliesMap[comment._id]
-                        ? 'Hide replies'
-                        : `View ${comment.replyCount} ${comment.replyCount === 1 ? 'reply' : 'replies'}`}
+                        ? t('hideReplies')
+                        : t('viewRepliesCount', {
+                            count: comment.replyCount,
+                            unit: comment.replyCount === 1 ? t('replySingular') : t('replies'),
+                          })}
                     </button>
                   )}
                 </div>
@@ -1064,7 +1099,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               {openReplyFormId === comment._id && (
                 <div className={styles.replyComposer}>
                   {replyingToId !== comment._id && (
-                    <div className={styles.replyingToLabel}>Replying to a reply</div>
+                    <div className={styles.replyingToLabel}>{t('replyingToReply')}</div>
                   )}
                   {memberResolved && !memberName && !showReplyNameField && (
                     <button
@@ -1074,7 +1109,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       aria-expanded="false"
                       aria-controls="reply-name"
                     >
-                      Add a name <span>(optional)</span>
+                      {t('addNameOptional')}
                     </button>
                   )}
 
@@ -1083,7 +1118,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       id="reply-name"
                       type="text"
                       className={styles.inputField}
-                      placeholder="Your name or nickname"
+                      placeholder={t('yourName')}
                       value={replyAuthorName}
                       onChange={(e) => setReplyAuthorName(e.target.value)}
                     />
@@ -1095,7 +1130,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     {!replyEditorReady && (
                       <div className={styles.editorLoadingOverlay} role="status">
                         <Spinner />
-                        <span>Opening editor…</span>
+                        <span>{t('openingEditor')}</span>
                       </div>
                     )}
                     <ReactQuill
@@ -1103,13 +1138,14 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       theme="snow"
                       value={replyText}
                       onChange={setReplyText}
-                      placeholder="Write a reply..."
+                      placeholder={t('writeReply')}
                       modules={replyModules}
                     />
                   </div>
                   {blockedReplyWords.length > 0 && (
                     <div className={styles.blockedTermMessage} role="alert">
-                      Blocked terms: {blockedReplyWords.map((word) => <strong key={word}>{word}</strong>)}
+                      {t('blockedTerms')}{' '}
+                      {blockedReplyWords.map((word) => <strong key={word}>{word}</strong>)}
                     </div>
                   )}
                   <div className={styles.replyActions}>
@@ -1121,7 +1157,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                         setReplyingToId(null);
                       }}
                     >
-                      Cancel
+                      {t('cancel')}
                     </button>
                     <button
                       type="button"
@@ -1130,7 +1166,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                       onClick={() => handleSubmitReply(comment._id)}
                     >
                       {replySubmitting && <Spinner />}
-                      Send Reply
+                      {t('sendReply')}
                     </button>
                   </div>
                 </div>
@@ -1153,9 +1189,9 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           className={styles.loadMoreSentinel}
           role="status"
           aria-live="polite"
-          aria-label={loadingMore ? 'Loading more comments' : 'More comments will load automatically'}
+          aria-label={loadingMore ? t('loadingMore') : t('scrollLoadMore')}
         >
-          {loadingMore ? <><Spinner /><span>Loading more comments…</span></> : 'Scroll to load more comments'}
+          {loadingMore ? <><Spinner /><span>{t('loadingMore')}</span></> : t('scrollLoadMore')}
         </div>
       )}
 
@@ -1173,10 +1209,10 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           >
             <div className={styles.dialogHeader}>
               <div>
-                <h3 id="edit-comment-title">Edit comment</h3>
-                <p>Update your comment and save the changes.</p>
+                <h3 id="edit-comment-title">{t('editCommentTitle')}</h3>
+                <p>{t('editCommentDesc')}</p>
               </div>
-              <button type="button" className={styles.closeDialogBtn} onClick={cancelEditing} disabled={savingEdit} aria-label="Close edit dialog">
+              <button type="button" className={styles.closeDialogBtn} onClick={cancelEditing} disabled={savingEdit} aria-label={t('closeEditDialog')}>
                 <X size={18} />
               </button>
             </div>
@@ -1195,14 +1231,14 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
               />
             </div>
             <div className={styles.editActions}>
-              <span className={styles.charCount}>{editingLength} characters</span>
+              <span className={styles.charCount}>{editingLength} {t('characters')}</span>
               <div className={styles.dialogActions}>
                 <button type="button" className={styles.actionBtn} onClick={cancelEditing} disabled={savingEdit}>
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button type="button" className={styles.submitBtn} onClick={handleSaveEdit} disabled={savingEdit || !editingLength}>
                   {savingEdit && <Spinner />}
-                  Save changes
+                  {t('saveChanges')}
                 </button>
               </div>
             </div>
@@ -1228,15 +1264,15 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           >
             <div className={styles.dialogHeader}>
               <div>
-                <h3 id="delete-comment-title">Delete comment?</h3>
-                <p id="delete-comment-description">This will remove your comment from the conversation. This action cannot be undone.</p>
+                <h3 id="delete-comment-title">{t('deleteCommentTitle')}</h3>
+                <p id="delete-comment-description">{t('deleteCommentDesc')}</p>
               </div>
               <button
                 type="button"
                 className={styles.closeDialogBtn}
                 onClick={() => setDeleteConfirmComment(null)}
                 disabled={Boolean(deletingCommentId)}
-                aria-label="Close delete confirmation"
+                aria-label={t('closeDeleteConfirmation')}
               >
                 <X size={18} />
               </button>
@@ -1248,7 +1284,7 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                 onClick={() => setDeleteConfirmComment(null)}
                 disabled={Boolean(deletingCommentId)}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -1257,14 +1293,14 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                 disabled={Boolean(deletingCommentId)}
               >
                 {deletingCommentId && <Spinner />}
-                Delete comment
+                {t('deleteComment')}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className={styles.footerBranding}>Powered by Engage Comments</div>
+      <div className={styles.footerBranding}>{t('poweredBy')}</div>
     </div>
   );
 };
@@ -1294,5 +1330,6 @@ export default reactToWebComponent(EngageCommentsWidget, React, ReactDOM as any,
     buttonFont: 'string',
     editorToolbar: 'string',
     editorPlaceholder: 'string',
+    language: 'string',
   },
 });

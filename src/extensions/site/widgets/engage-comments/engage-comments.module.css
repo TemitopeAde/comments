@@ -562,6 +562,21 @@
   gap: 12px;
 }
 
+.root[dir="rtl"] .replyThread {
+  padding-left: 0;
+  padding-right: 20px;
+  border-left: none;
+  border-right: 2px solid #dbeafe;
+}
+
+.root[dir="rtl"] .nestedReplies {
+  margin: 8px 16px 0 0;
+  padding-left: 0;
+  padding-right: 12px;
+  border-left: none;
+  border-right: 2px solid #e2e8f0;
+}
+
 .replyComposer {
   margin-top: 14px;
   padding: 14px;

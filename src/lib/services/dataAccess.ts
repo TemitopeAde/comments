@@ -36,8 +36,8 @@ const memoryStore: MemoryStore = {
   notificationPrefs: {
     ownerNotificationEmail: '',
     newSubmissionEnabled: true,
-    pendingModerationEnabled: true,
-    replyNotificationEnabled: true,
+    pendingModerationEnabled: false,
+    replyNotificationEnabled: false,
     weeklySummaryEnabled: false,
   },
   usage: {

@@ -24,6 +24,7 @@
     "@wix/design-system": "^1.154.0",
     "@wix/editor": "^1.356.0",
     "@wix/editor-react-types": "^1.0.110",
+    "@wix/email-transmissions": "^1.0.14",
     "@wix/essentials": "^0.1.23",
     "@wix/members": "^1.0.541",
     "@wix/react-component-schema": "^1.10.0",

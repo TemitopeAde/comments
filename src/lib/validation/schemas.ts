@@ -60,7 +60,7 @@ export const widgetSettingsSchema = z.object({
 export const notificationPrefsSchema = z.object({
   ownerNotificationEmail: z.string().email().optional().or(z.literal('')),
   newSubmissionEnabled: z.boolean().default(true),
-  pendingModerationEnabled: z.boolean().default(true),
+  pendingModerationEnabled: z.boolean().default(false),
   replyNotificationEnabled: z.boolean().default(false),
   weeklySummaryEnabled: z.boolean().default(false),
 });

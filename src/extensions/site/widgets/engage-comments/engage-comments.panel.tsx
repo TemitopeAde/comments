@@ -13,8 +13,10 @@ import {
   Box,
   Text,
   SectionHelper,
+  Dropdown,
 } from '@wix/design-system';
 import '@wix/design-system/styles.global.css';
+import { SUPPORTED_LANGUAGES } from '../../../../lib/locales/translations';
 
 interface FontPickerValue {
   font: string;
@@ -80,6 +82,7 @@ const Panel: FC = () => {
   const [editorToolbar, setEditorToolbar] = useState<EditorToolbarOptions>(DEFAULT_EDITOR_TOOLBAR);
   const [blockedWords, setBlockedWords] = useState<string[]>([]);
   const [blockedWordInput, setBlockedWordInput] = useState<string>('');
+  const [language, setLanguage] = useState<string>('auto');
 
   useEffect(() => {
     httpClient.fetchWithAuth(apiUrl('/api/dashboard/trial-status'))
@@ -102,6 +105,7 @@ const Panel: FC = () => {
     widget.getProp('enable-reactions').then((v) => setEnableReactions(v !== 'false')).catch(console.error);
     widget.getProp('allow-guest').then((v) => setAllowGuest(v !== 'false')).catch(console.error);
     widget.getProp('require-approval').then((v) => setRequireApproval(v === 'true')).catch(console.error);
+    widget.getProp('language').then((v) => v && setLanguage(v)).catch(console.error);
     widget.getProp('editor-toolbar').then((v) => {
       if (!v) return;
       try {
@@ -160,6 +164,11 @@ const Panel: FC = () => {
     const val = e.target.value;
     setEditorPlaceholder(val);
     widget.setProp('editor-placeholder', val);
+  }, []);
+
+  const handleLanguageChange = useCallback((val: string) => {
+    setLanguage(val);
+    widget.setProp('language', val);
   }, []);
 
   const handleColorPick = useCallback((propName: string, value: string, onChange: (next: string) => void) => {
@@ -494,6 +503,31 @@ const Panel: FC = () => {
                         </FormField>
                       </SidePanel.Field>
 
+                    </Box>
+                  ),
+                },
+                {
+                  title: 'Language & Localization',
+                  children: (
+                    <Box direction="vertical" gap="16px" padding="16px 0">
+                      <SidePanel.Field>
+                        <FormField label="Widget Language" infoContent="Choose a specific language or auto-detect from the visitor's or site's language.">
+                          <Dropdown
+                            selectedId={language}
+                            onSelect={(option) => handleLanguageChange(String(option.id))}
+                            options={[
+                              { id: 'auto', value: 'Auto-detect (Site / Visitor Language)' },
+                              ...SUPPORTED_LANGUAGES.map((lang) => ({
+                                id: lang.code,
+                                value: `${lang.nativeName} (${lang.name})`,
+                              })),
+                            ]}
+                          />
+                        </FormField>
+                      </SidePanel.Field>
+                      <Text size="tiny" secondary>
+                        Supports top 20 languages including English, Spanish, French, German, Italian, Portuguese, Dutch, Japanese, Chinese, Korean, Russian, Polish, Swedish, Danish, Finnish, Norwegian, Turkish, Arabic, Hebrew, and Hindi with full RTL support.
+                      </Text>
                     </Box>
                   ),
                 },

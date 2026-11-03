@@ -15,6 +15,7 @@ import {
   Trash2,
   Star,
   ArrowRight,
+  LoaderCircle,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import "./dashboard.css";
@@ -23,6 +24,7 @@ import type { EngageComment, WidgetSettings } from "../../../../lib/types";
 const { fetchWithAuth } = httpClient;
 const API_ORIGIN = new URL(import.meta.url).origin;
 const apiUrl = (path: string) => new URL(path, API_ORIGIN).toString();
+const DASHBOARD_COMMENT_PREVIEW_LENGTH = 500;
 
 const sanitizeRichText = (html: string) => {
   if (typeof document === "undefined") return html.replace(/<[^>]*>/g, " ");
@@ -60,23 +62,66 @@ const sanitizeRichText = (html: string) => {
   return template.innerHTML;
 };
 
+const getRichTextPlainText = (html: string) => {
+  if (typeof document === "undefined") return html.replace(/<[^>]*>/g, " ");
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  return container.textContent?.replace(/\u00a0/g, " ") || "";
+};
+
+const getRichTextPreview = (html: string, maxLength: number) => {
+  if (typeof document === "undefined") {
+    return html.replace(/<[^>]*>/g, "").slice(0, maxLength);
+  }
+
+  const container = document.createElement("div");
+  container.innerHTML = sanitizeRichText(html);
+  let remaining = maxLength;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  let node: Node | null;
+
+  while ((node = walker.nextNode())) textNodes.push(node as Text);
+
+  for (const textNode of textNodes) {
+    if (remaining <= 0) {
+      textNode.remove();
+    } else if (textNode.data.length > remaining) {
+      textNode.data = textNode.data.slice(0, remaining);
+      remaining = 0;
+    } else {
+      remaining -= textNode.data.length;
+    }
+  }
+
+  return container.innerHTML;
+};
+
 const RichTextContent = ({
   content,
   size = "small",
 }: {
   content: string;
   size?: "small" | "medium";
-}) => (
-  <div
-    style={{
-      fontSize: size === "medium" ? 14 : 13,
-      lineHeight: 1.5,
-      overflowWrap: "anywhere",
-      color: "#334155",
-    }}
-    dangerouslySetInnerHTML={{ __html: sanitizeRichText(content) }}
-  />
-);
+}) => {
+  const isLong = getRichTextPlainText(content).trim().length > DASHBOARD_COMMENT_PREVIEW_LENGTH;
+  const displayContent = isLong
+    ? `${getRichTextPreview(content, DASHBOARD_COMMENT_PREVIEW_LENGTH)}…`
+    : sanitizeRichText(content);
+
+  return (
+    <div
+      style={{
+        fontSize: size === "medium" ? 14 : 13,
+        lineHeight: 1.5,
+        overflowWrap: "anywhere",
+        color: "#334155",
+      }}
+      dangerouslySetInnerHTML={{ __html: displayContent }}
+    />
+  );
+};
 
 interface OverviewStats {
   totalComments: number;
@@ -108,6 +153,7 @@ function DashboardApp() {
   const [loading, setLoading] = useState<boolean>(true);
   const [replyTextMap, setReplyTextMap] = useState<Record<string, string>>({});
   const [replyOpenMap, setReplyOpenMap] = useState<Record<string, boolean>>({});
+  const [ownerReplySubmittingId, setOwnerReplySubmittingId] = useState<string | null>(null);
   const [trialStatus, setTrialStatus] = useState<TrialStatus>({
     available: false,
   });
@@ -222,6 +268,11 @@ function DashboardApp() {
     commentId: string,
     action: "approve" | "reject" | "pin" | "unpin" | "delete" | "owner-reply",
   ) => {
+    if (action === "owner-reply") {
+      if (ownerReplySubmittingId) return;
+      setOwnerReplySubmittingId(commentId);
+    }
+
     try {
       const replyText = replyTextMap[commentId];
       const res = await fetchWithAuth(apiUrl("/api/dashboard/moderate"), {
@@ -256,6 +307,8 @@ function DashboardApp() {
     } catch (e) {
       console.error(e);
       toast.error("Unable to update this comment. Please try again.");
+    } finally {
+      if (action === "owner-reply") setOwnerReplySubmittingId(null);
     }
   };
 
@@ -472,10 +525,16 @@ function DashboardApp() {
                   Cancel
                 </Button>
                 <Button
-                  disabled={!replyTextMap[item._id]?.trim()}
+                  disabled={
+                    !replyTextMap[item._id]?.trim() ||
+                    ownerReplySubmittingId === item._id
+                  }
                   onClick={() => handleModerate(item._id, "owner-reply")}
                 >
-                  Send reply
+                  {ownerReplySubmittingId === item._id && (
+                    <LoaderCircle className="button-spinner" aria-hidden="true" />
+                  )}
+                  {ownerReplySubmittingId === item._id ? "Sending…" : "Send reply"}
                 </Button>
               </div>
             </div>

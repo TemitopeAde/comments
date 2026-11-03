@@ -181,6 +181,14 @@
   width: 15px;
   height: 15px;
 }
+.button-spinner {
+  animation: dashboard-spin 0.8s linear infinite;
+}
+@keyframes dashboard-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .ui-button-primary {
   background: var(--primary);
   color: white;

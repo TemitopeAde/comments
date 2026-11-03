@@ -1,21 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { FC } from 'react';
 import classNames from 'classnames';
 import styles from './comments-thread.module.css';
 import type { CommentsThreadProps, CommentItem } from './comments-thread.props';
+import {
+  resolveLocale,
+  getLocaleDirection,
+  getTranslation,
+  type LocaleKey,
+} from '../../../../lib/locales/translations';
 
-const placeholderComment: CommentItem = {
-  name: 'placeholder-comment',
-  authorName: 'Community Member',
-  badge: 'Member',
-  rating: 5,
-  date: 'Just now',
-  content: 'This is a sample comment.',
-  likesCount: 0,
-  repliesCount: 0,
-};
-
-export const CommentsThread: FC<CommentsThreadProps> = (props) => {
+export const CommentsThread: FC<CommentsThreadProps & { locale?: string }> = (props) => {
   const {
     id,
     className,
@@ -32,7 +27,37 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
     likeButtonLabel,
     comments,
     elementProps,
+    locale,
   } = props;
+
+  const currentLocale = useMemo(() => resolveLocale(locale), [locale]);
+  const effectiveDirection = direction || getLocaleDirection(currentLocale);
+  const t = useMemo(() => {
+    return (key: LocaleKey, params?: Record<string, string | number>) =>
+      getTranslation(currentLocale, key, params);
+  }, [currentLocale]);
+
+  const displayTitle = title || t('discussionTitle');
+  const displaySubtitle = subtitle !== undefined ? subtitle : t('discussionSubtitle');
+  const displayRatingLabel = ratingLabel || t('yourRating');
+  const displayPlaceholder = composerPlaceholder || t('writeYourThought');
+  const displaySubmitLabel = submitButtonLabel || t('postComment');
+  const displayEmptyTitle = emptyTitle || t('emptyState');
+  const displayEmptySubtitle = emptySubtitle !== undefined ? emptySubtitle : t('beTheFirst');
+  const displayLoadMoreLabel = loadMoreLabel || t('loadMore');
+  const displayReplyLabel = replyButtonLabel || t('reply');
+  const displayLikeLabel = likeButtonLabel || t('like');
+
+  const placeholderComment: CommentItem = useMemo(() => ({
+    name: 'placeholder-comment',
+    authorName: t('communityMember'),
+    badge: t('memberBadge'),
+    rating: 5,
+    date: t('justNow'),
+    content: t('sampleComment'),
+    likesCount: 0,
+    repliesCount: 0,
+  }), [t]);
 
   const [composerRating, setComposerRating] = useState<number>(5);
   const [composerText, setComposerText] = useState<string>('');
@@ -53,7 +78,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
     setActiveLikes((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
-  const renderComment = (item: CommentItem, isPlaceholder = false) => {
+  const renderComment = (item: CommentItem) => {
     const isLiked = Boolean(activeLikes[item.name]);
     const displayLikes = (item.likesCount ?? 0) + (isLiked ? 1 : 0);
 
@@ -120,7 +145,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
           {item.rating ? (
             <div
               role="img"
-              aria-label={`${item.rating} out of 5 stars`}
+              aria-label={t('ratingOutOf', { rating: item.rating })}
               {...elementProps?.commentsThreadRating}
               className={classNames(
                 'comments-thread-rating',
@@ -165,7 +190,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
           <button
             type="button"
             {...likeProps}
-            aria-label={likeA11y?.ariaLabel}
+            aria-label={likeA11y?.ariaLabel || displayLikeLabel}
             onClick={() => handleToggleLike(item.name)}
             className={classNames(
               'comments-thread-like-button',
@@ -188,14 +213,14 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
                 d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
               />
             </svg>
-            <span>{likeButtonLabel}</span>
+            <span>{displayLikeLabel}</span>
             {displayLikes > 0 ? <span className={styles.countBadge}>({displayLikes})</span> : null}
           </button>
 
           <button
             type="button"
             {...replyProps}
-            aria-label={replyA11y?.ariaLabel}
+            aria-label={replyA11y?.ariaLabel || displayReplyLabel}
             className={classNames(
               'comments-thread-reply-button',
               styles.replyButton,
@@ -216,7 +241,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
                 d="M7.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L5.414 9H13a5 5 0 015 5v1a1 1 0 11-2 0v-1a3 3 0 00-3-3H5.414l2.293 2.293a1 1 0 010 1.414z"
               />
             </svg>
-            <span>{replyButtonLabel}</span>
+            <span>{displayReplyLabel}</span>
             {(item.repliesCount ?? 0) > 0 ? (
               <span className={styles.countBadge}>({item.repliesCount})</span>
             ) : null}
@@ -229,7 +254,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
   return (
     <section
       id={id}
-      dir={direction}
+      dir={effectiveDirection}
       className={classNames(
         'comments-thread',
         styles.root,
@@ -253,9 +278,9 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
             elementProps?.commentsThreadTitle?.className,
           )}
         >
-          {title}
+          {displayTitle}
         </h2>
-        {subtitle ? (
+        {displaySubtitle ? (
           <p
             {...elementProps?.commentsThreadSubtitle}
             className={classNames(
@@ -264,7 +289,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
               elementProps?.commentsThreadSubtitle?.className,
             )}
           >
-            {subtitle}
+            {displaySubtitle}
           </p>
         ) : null}
       </header>
@@ -277,17 +302,17 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
           elementProps?.commentsThreadComposer?.className,
         )}
       >
-        {ratingLabel ? (
+        {displayRatingLabel ? (
           <div className={styles.ratingBar}>
-            <span className={styles.ratingBarLabel}>{ratingLabel}</span>
-            <div className={styles.starSelector} aria-label={ratingLabel}>
+            <span className={styles.ratingBarLabel}>{displayRatingLabel}</span>
+            <div className={styles.starSelector} aria-label={displayRatingLabel}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   className={star <= composerRating ? styles.starSelected : styles.starUnselected}
                   onClick={() => setComposerRating(star)}
-                  aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                  aria-label={star === 1 ? t('rateStarSingle', { star }) : t('rateStarPlural', { star })}
                   aria-pressed={composerRating >= star}
                 >
                   <svg className={styles.selectorStarIcon} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -303,7 +328,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
           {...elementProps?.commentsThreadTextarea}
           value={composerText}
           onChange={(e) => setComposerText(e.target.value)}
-          placeholder={composerPlaceholder}
+          placeholder={displayPlaceholder}
           rows={3}
           className={classNames(
             'comments-thread-textarea',
@@ -316,14 +341,14 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
           <button
             type="button"
             {...submitProps}
-            aria-label={submitA11y?.ariaLabel}
+            aria-label={submitA11y?.ariaLabel || displaySubmitLabel}
             className={classNames(
               'comments-thread-submit-button',
               styles.submitButton,
               submitProps.className,
             )}
           >
-            {submitButtonLabel}
+            {displaySubmitLabel}
           </button>
         </div>
       </div>
@@ -340,7 +365,7 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
 
         {/* Keep item parts mounted during manifest generation even if empty */}
         <div hidden={items.length > 0}>
-          {renderComment(placeholderComment, true)}
+          {renderComment(placeholderComment)}
         </div>
       </div>
 
@@ -362,9 +387,9 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
             elementProps?.commentsThreadEmptyTitle?.className,
           )}
         >
-          {emptyTitle}
+          {displayEmptyTitle}
         </h3>
-        {emptySubtitle ? (
+        {displayEmptySubtitle ? (
           <p
             {...elementProps?.commentsThreadEmptySubtitle}
             className={classNames(
@@ -373,24 +398,24 @@ export const CommentsThread: FC<CommentsThreadProps> = (props) => {
               elementProps?.commentsThreadEmptySubtitle?.className,
             )}
           >
-            {emptySubtitle}
+            {displayEmptySubtitle}
           </p>
         ) : null}
       </div>
 
-      {items.length > 0 && loadMoreLabel ? (
+      {items.length > 0 && displayLoadMoreLabel ? (
         <div className={styles.loadMoreRow}>
           <button
             type="button"
             {...loadMoreProps}
-            aria-label={loadMoreA11y?.ariaLabel}
+            aria-label={loadMoreA11y?.ariaLabel || displayLoadMoreLabel}
             className={classNames(
               'comments-thread-load-more-button',
               styles.loadMoreButton,
               loadMoreProps.className,
             )}
           >
-            {loadMoreLabel}
+            {displayLoadMoreLabel}
           </button>
         </div>
       ) : null}

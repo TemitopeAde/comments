@@ -1,19 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { FC } from 'react';
 import classNames from 'classnames';
 import styles from './testimonials-grid.module.css';
 import type { TestimonialsGridProps, TestimonialItem } from './testimonials-grid.props';
+import {
+  resolveLocale,
+  getLocaleDirection,
+  getTranslation,
+  type LocaleKey,
+} from '../../../../lib/locales/translations';
 
-const placeholderTestimonial: TestimonialItem = {
-  name: 'placeholder-testimonial',
-  authorName: 'Client Name',
-  authorRole: 'Role / Company',
-  verifiedBadge: 'Verified Client',
-  rating: 5,
-  quoteText: 'This is a sample testimonial highlighting client satisfaction and quality of service.',
-};
-
-export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
+export const TestimonialsGrid: FC<TestimonialsGridProps & { locale?: string }> = (props) => {
   const {
     id,
     className,
@@ -23,11 +20,32 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
     ratingSummary,
     testimonials,
     elementProps,
+    locale,
   } = props;
+
+  const currentLocale = useMemo(() => resolveLocale(locale), [locale]);
+  const effectiveDirection = direction || getLocaleDirection(currentLocale);
+  const t = useMemo(() => {
+    return (key: LocaleKey, params?: Record<string, string | number>) =>
+      getTranslation(currentLocale, key, params);
+  }, [currentLocale]);
+
+  const displayTitle = title || t('testimonialsTitle');
+  const displaySubtitle = subtitle !== undefined ? subtitle : t('testimonialsSubtitle');
+  const displayRatingSummary = ratingSummary !== undefined ? ratingSummary : t('ratingSummaryDefault');
+
+  const placeholderTestimonial: TestimonialItem = useMemo(() => ({
+    name: 'placeholder-testimonial',
+    authorName: t('clientName'),
+    authorRole: t('clientRole'),
+    verifiedBadge: t('verifiedClient'),
+    rating: 5,
+    quoteText: t('sampleTestimonial'),
+  }), [t]);
 
   const items = testimonials && testimonials.length > 0 ? testimonials : [];
 
-  const renderCard = (item: TestimonialItem, isPlaceholder = false) => {
+  const renderCard = (item: TestimonialItem) => {
     return (
       <article
         key={item.name}
@@ -41,7 +59,7 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
         {item.rating ? (
           <div
             role="img"
-            aria-label={`${item.rating} out of 5 stars`}
+            aria-label={t('ratingOutOf', { rating: item.rating })}
             {...elementProps?.testimonialsGridStars}
             className={classNames(
               'testimonials-grid-stars',
@@ -139,7 +157,7 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
   return (
     <section
       id={id}
-      dir={direction}
+      dir={effectiveDirection}
       className={classNames(
         'testimonials-grid',
         styles.root,
@@ -163,9 +181,9 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
             elementProps?.testimonialsGridTitle?.className,
           )}
         >
-          {title}
+          {displayTitle}
         </h2>
-        {subtitle ? (
+        {displaySubtitle ? (
           <p
             {...elementProps?.testimonialsGridSubtitle}
             className={classNames(
@@ -174,10 +192,10 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
               elementProps?.testimonialsGridSubtitle?.className,
             )}
           >
-            {subtitle}
+            {displaySubtitle}
           </p>
         ) : null}
-        {ratingSummary ? (
+        {displayRatingSummary ? (
           <span
             {...elementProps?.testimonialsGridRatingSummary}
             className={classNames(
@@ -186,7 +204,7 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
               elementProps?.testimonialsGridRatingSummary?.className,
             )}
           >
-            {ratingSummary}
+            {displayRatingSummary}
           </span>
         ) : null}
       </header>
@@ -203,7 +221,7 @@ export const TestimonialsGrid: FC<TestimonialsGridProps> = (props) => {
 
         {/* Keep card parts mounted during manifest generation even if items list is empty */}
         <div hidden={items.length > 0}>
-          {renderCard(placeholderTestimonial, true)}
+          {renderCard(placeholderTestimonial)}
         </div>
       </div>
     </section>
