@@ -1,5 +1,7 @@
 import type { EngageComment, CommentStatus, AuthorType, TargetType } from '../types';
 import { members } from '@wix/members';
+import { appInstances } from '@wix/app-management';
+import { auth } from '@wix/essentials';
 import {
   COLLECTIONS,
   elevatedQuery,
@@ -10,7 +12,26 @@ import {
 } from './dataAccess';
 import { getWidgetConfig, INTERNAL_BLOCKED_WORDS } from './widgetsService';
 
-const isDevelopmentEnvironment = import.meta.env.WIX_ENVIRONMENT === 'development';
+const isDevelopmentEnvironment = import.meta.env?.WIX_ENVIRONMENT === 'development';
+
+export async function getCurrentPlanName(): Promise<string> {
+  try {
+    const tokenInfo = await auth.getTokenInfo();
+    if (tokenInfo?.instanceId) {
+      const getAppInstance = auth.elevate(appInstances.getAppInstance);
+      const { instance } = await getAppInstance();
+      if (instance) {
+        if (instance.isFree) return 'Basic';
+        const planName = (instance as any).plan || (instance as any).billing?.packageName || (instance as any).planName;
+        if (planName) return planName;
+        return 'Pro';
+      }
+    }
+  } catch {
+    // Non-Wix instance context or fallback to memoryStore
+  }
+  return memoryStore.usage.planName || 'Basic';
+}
 
 interface AuthenticatedMember {
   id: string;
@@ -59,6 +80,11 @@ function canEditComment(comment: EngageComment, member: AuthenticatedMember | nu
 }
 
 async function enforceProductionPlanLimits() {
+  const planName = await getCurrentPlanName();
+  if (planName.trim().toLowerCase() !== 'pro') {
+    throw new Error('Commenting is only available on the Pro plan. Please upgrade to Pro.');
+  }
+
   // Local development is intentionally unrestricted so the app can be tested
   // without consuming the Basic plan quota.
   if (isDevelopmentEnvironment) return;
@@ -167,6 +193,9 @@ export async function getPublishedComments(options: CommentQueryOptions) {
     ? Number((rated.reduce((sum, c) => sum + (c.rating || 0), 0) / rated.length).toFixed(1))
     : 0;
 
+  const planName = await getCurrentPlanName();
+  const isPro = planName.trim().toLowerCase() === 'pro';
+
   return {
     items: paged.map((comment) => ({
       ...toPublicComment(comment),
@@ -179,6 +208,8 @@ export async function getPublishedComments(options: CommentQueryOptions) {
     currentMember: requester
       ? { displayName: requester.displayName, avatarUrl: requester.avatarUrl }
       : null,
+    planName,
+    isPro,
   };
 }
 
@@ -472,6 +503,7 @@ export async function getDashboardOverview(widgetKey?: string) {
     .sort((a, b) => new Date(b._createdDate || 0).getTime() - new Date(a._createdDate || 0).getTime())
     .slice(0, 5);
 
+  const planName = await getCurrentPlanName();
   return {
     totalComments: all.length,
     publishedComments: published.length,
@@ -480,7 +512,8 @@ export async function getDashboardOverview(widgetKey?: string) {
     averageRating: avgRating,
     recentActivity: recent,
     pluginStatus: 'installed',
-    plan: memoryStore.usage.planName,
+    plan: planName,
+    isPro: planName.trim().toLowerCase() === 'pro',
     usage: {
       commentsCreated: memoryStore.usage.commentsCreated,
       commentsLimit: memoryStore.usage.commentsLimit,

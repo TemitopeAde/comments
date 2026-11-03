@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>03 - Moderation Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1200px;
+      height: 900px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      display: flex;
+    }
+
+    /* Wix Dashboard Sidebar */
+    aside {
+      width: 240px;
+      height: 100%;
+      background: #ffffff;
+      border-right: 1px solid #e2e8f0;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+      padding-left: 8px;
+    }
+    .brand-icon {
+      width: 26px;
+      height: 26px;
+      background: #3899ec;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .brand-dot { color: #3899ec; }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      padding-left: 8px;
+      margin-bottom: -16px;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+    .nav-badge {
+      margin-left: auto;
+      background: #ef4444;
+      color: white;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      font-weight: 700;
+    }
+
+    .sidebar-note {
+      margin-top: auto;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .sidebar-note strong {
+      color: #0f172a;
+      font-size: 13px;
+    }
+
+    /* Main Area */
+    main {
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 32px 40px;
+      gap: 20px;
+    }
+    .top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .title-group h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+    }
+    .title-group p {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-secondary {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Status Tabs */
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 8px;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+    }
+    .tab-badge {
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+    .tab-badge.amber {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    /* Search & Filter Toolbar */
+    .filter-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .search-box {
+      flex: 1;
+      max-width: 380px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-selects {
+      display: flex;
+      gap: 10px;
+    }
+    .select-pill {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #334155;
+      font-weight: 500;
+    }
+
+    /* Moderation Cards Queue */
+    .moderation-queue {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .mod-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .mod-card.pending {
+      border-left: 4px solid #f59e0b;
+    }
+    .mod-card.published {
+      border-left: 4px solid #10b981;
+    }
+    .mod-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mod-author-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .mod-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: white;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mod-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-status {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+    .status-pending {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    .status-published {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status-pinned {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .mod-content {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #334155;
+    }
+    .mod-actions-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .mod-date {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .mod-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-approve {
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+    }
+    .btn-reject {
+      background: #ffffff;
+      color: #ef4444;
+      border: 1px solid #fecaca;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-action-tool {
+      background: #ffffff;
+      color: #64748b;
+      border: 1px solid #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Nested reply in published card */
+    .admin-reply-box {
+      margin-left: 24px;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <!-- Dashboard Sidebar -->
+  <aside>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      </div>
+      engage<span class="brand-dot">.</span>
+    </div>
+
+    <p class="nav-label">WORKSPACE</p>
+    <nav>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Overview
+      </div>
+      <div class="nav-item active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Comments Moderation
+        <span class="nav-badge">3</span>
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+        Plans &amp; Usage
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        Help &amp; Docs
+      </div>
+    </nav>
+
+    <div class="sidebar-note">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+      <strong>Your community, cared for.</strong>
+      <p>Keep conversations meaningful with real-time approval controls.</p>
+    </div>
+  </aside>
+
+  <!-- Main Content Dashboard -->
+  <main>
+    <div class="top-header">
+      <div class="title-group">
+        <h1>Comments &amp; Reviews Moderation</h1>
+        <p>Review, approve, pin, or reply to visitor comments across your site.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export CSV
+        </button>
+        <button class="btn-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn">All <span class="tab-badge">142</span></button>
+      <button class="tab-btn active">Pending Approval <span class="tab-badge amber">3</span></button>
+      <button class="tab-btn">Published <span class="tab-badge">136</span></button>
+      <button class="tab-btn">Rejected <span class="tab-badge">3</span></button>
+    </div>
+
+    <!-- Search Toolbar -->
+    <div class="filter-toolbar">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        Filter comments by author, email, or content...
+      </div>
+      <div class="filter-selects">
+        <div class="select-pill">All Ratings (1-5★) ▾</div>
+        <div class="select-pill">All Widgets (3) ▾</div>
+        <div class="select-pill">Newest First ▾</div>
+      </div>
+    </div>
+
+    <!-- Cards List -->
+    <div class="moderation-queue">
+      <!-- Card 1: Pending Approval -->
+      <div class="mod-card pending">
+        <div class="mod-card-top">
+          <div class="mod-author-meta">
+            <div class="mod-avatar" style="background: #f59e0b;">SC</div>
+            <div>
+              <div class="mod-name">
+                Sophia Chen
+                <span style="font-size: 12px; color: #64748b; font-weight: normal;">(sophia.c@designlab.io)</span>
+                <span class="badge-status status-pending">● Pending Review</span>
+              </div>
+              <div style="color: #ffb800; font-size: 13px;">★★★★★ 5.0 Rating</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #64748b;">Widget: Product Reviews</div>
+        </div>
+        <div class="mod-content">
+          "We integrated this on our artisan shop and visitor engagement increased drastically! The typography styling matches our Wix Studio theme seamlessly. Can we customize the confirmation email notification?"
+        </div>
+        <div class="mod-actions-bar">
+          <div class="mod-date">Submitted 24 mins ago • IP: 192.168.1.42 (Verified Guest)</div>
+          <div class="mod-buttons">
+            <button class="btn-approve">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Approve &amp; Publish
+            </button>
+            <button class="btn-reject">✕ Reject</button>
+            <button class="btn-action-tool">📌 Pin</button>
+            <button class="btn-action-tool">💬 Reply as Owner</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Pending Approval -->
+      <div class="mod-card pending">
+        <div class="mod-card-top">
+          <div class="mod-author-meta">
+            <div class="mod-avatar" style="background: #3b82f6;">LG</div>
+            <div>
+              <div class="mod-name">
+                Lucas Grey
+                <span style="font-size: 12px; color: #64748b; font-weight: normal;">(lucas@studio-brew.com)</span>
+                <span class="badge-status status-pending">● Pending Review</span>
+              </div>
+              <div style="color: #ffb800; font-size: 13px;">★★★★☆ 4.0 Rating</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #64748b;">Widget: Blog Discussion</div>
+        </div>
+        <div class="mod-content">
+          "Fantastic step-by-step extraction guide. We tried the 92°C brew temperature today and noticed significantly lower astringency. Loving the new 20-language support as well!"
+        </div>
+        <div class="mod-actions-bar">
+          <div class="mod-date">Submitted 1 hour ago • Verified Member</div>
+          <div class="mod-buttons">
+            <button class="btn-approve">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Approve &amp; Publish
+            </button>
+            <button class="btn-reject">✕ Reject</button>
+            <button class="btn-action-tool">📌 Pin</button>
+            <button class="btn-action-tool">💬 Reply as Owner</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Published & Pinned with Reply -->
+      <div class="mod-card published">
+        <div class="mod-card-top">
+          <div class="mod-author-meta">
+            <div class="mod-avatar" style="background: #10b981;">SJ</div>
+            <div>
+              <div class="mod-name">
+                Sarah Jenkins
+                <span class="badge-status status-published">✓ Published</span>
+                <span class="badge-status status-pinned">📌 Pinned to Top</span>
+              </div>
+              <div style="color: #ffb800; font-size: 13px;">★★★★★ 5.0 Rating</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #64748b;">24 Helpful Upvotes</div>
+        </div>
+        <div class="mod-content">
+          "Hands down the best coffee dripper we've ever purchased! Incredible heat retention and the subtle artisan glaze looks stunning on our kitchen counter."
+        </div>
+        <div class="admin-reply-box">
+          <strong>Owner Response (Artisan Roasters):</strong> Thank you Sarah! We poured months into crafting the ceramic profile for balanced extraction. Enjoy the morning brews!
+        </div>
+        <div class="mod-actions-bar">
+          <div class="mod-date">Published Yesterday • Auto-moderated</div>
+          <div class="mod-buttons">
+            <button class="btn-action-tool">Unpin</button>
+            <button class="btn-action-tool">Edit Reply</button>
+            <button class="btn-reject">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+

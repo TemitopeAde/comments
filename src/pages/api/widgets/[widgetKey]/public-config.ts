@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getWidgetConfig, INTERNAL_BLOCKED_WORDS } from '../../../../lib/services/widgetsService';
+import { getCurrentPlanName } from '../../../../lib/services/commentsService';
 
 export const GET: APIRoute = async ({ params }) => {
   try {
@@ -9,9 +10,14 @@ export const GET: APIRoute = async ({ params }) => {
     }
 
     const widget = await getWidgetConfig(widgetKey);
+    const planName = await getCurrentPlanName();
+    const isPro = planName.trim().toLowerCase() === 'pro';
+
     // Return only safe public configuration
     const publicConfig = {
       widgetKey: widget.widgetKey,
+      planName,
+      isPro,
       title: widget.settings.title,
       subtitle: widget.settings.subtitle,
       enableComments: widget.settings.enableComments,

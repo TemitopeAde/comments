@@ -282,6 +282,27 @@ const Panel: FC = () => {
         />
         <SidePanel.Content noPadding stretchVertically>
           <Box width="100%" padding="16px">
+            <Box direction="vertical" gap="8px" padding="0 0 16px">
+              <FormField
+                label="Widget Language"
+                infoContent="Choose a specific language or auto-detect from the visitor's or site's language."
+              >
+                <Dropdown
+                  selectedId={language}
+                  onSelect={(option) => handleLanguageChange(String(option.id))}
+                  options={[
+                    { id: 'auto', value: 'Auto-detect (Site / Visitor Language)' },
+                    ...SUPPORTED_LANGUAGES.map((lang) => ({
+                      id: lang.code,
+                      value: `${lang.nativeName} (${lang.name})`,
+                    })),
+                  ]}
+                />
+              </FormField>
+              <Text size="tiny" secondary>
+                Sets the language used by this widget.
+              </Text>
+            </Box>
             <Accordion
               size="small"
               skin="light"
@@ -503,31 +524,6 @@ const Panel: FC = () => {
                         </FormField>
                       </SidePanel.Field>
 
-                    </Box>
-                  ),
-                },
-                {
-                  title: 'Language & Localization',
-                  children: (
-                    <Box direction="vertical" gap="16px" padding="16px 0">
-                      <SidePanel.Field>
-                        <FormField label="Widget Language" infoContent="Choose a specific language or auto-detect from the visitor's or site's language.">
-                          <Dropdown
-                            selectedId={language}
-                            onSelect={(option) => handleLanguageChange(String(option.id))}
-                            options={[
-                              { id: 'auto', value: 'Auto-detect (Site / Visitor Language)' },
-                              ...SUPPORTED_LANGUAGES.map((lang) => ({
-                                id: lang.code,
-                                value: `${lang.nativeName} (${lang.name})`,
-                              })),
-                            ]}
-                          />
-                        </FormField>
-                      </SidePanel.Field>
-                      <Text size="tiny" secondary>
-                        Supports top 20 languages including English, Spanish, French, German, Italian, Portuguese, Dutch, Japanese, Chinese, Korean, Russian, Polish, Swedish, Danish, Finnish, Norwegian, Turkish, Arabic, Hebrew, and Hindi with full RTL support.
-                      </Text>
                     </Box>
                   ),
                 },

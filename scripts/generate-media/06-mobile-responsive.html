@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>06 - Mobile Responsive View</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1200px;
+      height: 900px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, #091326 0%, #0d1b3e 50%, #102a6b 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .ambient-glow {
+      position: absolute;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(56, 153, 236, 0.25) 0%, rgba(56, 153, 236, 0) 70%);
+      pointer-events: none;
+    }
+
+    /* Layout Columns */
+    .mobile-showcase-container {
+      width: 100%;
+      height: 100%;
+      padding: 40px 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Left Info Column */
+    .showcase-info {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56, 153, 236, 0.15);
+      border: 1px solid rgba(56, 153, 236, 0.4);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #60a5fa;
+      width: fit-content;
+    }
+    .showcase-title {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .showcase-desc {
+      font-size: 15px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .feature-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .card-icon {
+      width: 36px;
+      height: 36px;
+      background: #3899ec;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .card-text {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    /* Phone Device Mockup */
+    .phone-wrapper {
+      position: relative;
+      width: 380px;
+      height: 780px;
+      background: #18181b;
+      border-radius: 50px;
+      padding: 12px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 0 2px #3f3f46, inset 0 0 4px #71717a;
+      display: flex;
+      flex-direction: column;
+    }
+    .phone-screen {
+      flex: 1;
+      background: #ffffff;
+      border-radius: 40px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 24px;
+      background: #000000;
+      border-radius: 20px;
+      z-index: 100;
+    }
+
+    /* Mobile Browser Bar */
+    .mobile-address-bar {
+      margin-top: 36px;
+      padding: 8px 16px;
+      background: #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #64748b;
+      gap: 6px;
+    }
+
+    /* Mobile Widget Container */
+    .mobile-widget {
+      flex: 1;
+      padding: 16px;
+      background: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      color: #0f172a;
+    }
+
+    .mobile-summary-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mobile-rating-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mobile-score {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stars-gold {
+      color: #ffb800;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    .btn-mobile-write {
+      width: 100%;
+      background: #3899ec;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Mobile Comment Card */
+    .mobile-comment {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mobile-author {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .avatar-mini {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      color: white;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .mobile-author-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .mobile-buyer-badge {
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 9999px;
+    }
+    .mobile-text {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #334155;
+    }
+    .mobile-actions {
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    /* Mobile Nested Thread */
+    .mobile-reply {
+      margin-left: 14px;
+      padding-left: 10px;
+      border-left: 2px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow"></div>
+
+  <div class="mobile-showcase-container">
+    <!-- Left Column: Specs & Features -->
+    <div class="showcase-info">
+      <div class="badge-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+        MOBILE OPTIMIZED
+      </div>
+      <h2 class="showcase-title">Seamless on every mobile screen</h2>
+      <p class="showcase-desc">Engage Comments is built from the ground up to provide a native app feel on smartphones and tablets.</p>
+
+      <div class="feature-card">
+        <div class="card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        </div>
+        <div>
+          <div class="card-title">One-Tap Star Ratings</div>
+          <div class="card-text">Large touch targets for effortless ratings without misclicks.</div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="card-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div>
+          <div class="card-title">Responsive Threading</div>
+          <div class="card-text">Smart nesting that prevents narrow horizontal squeezing on small devices.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Column: Mobile Device Mockup -->
+    <div class="phone-wrapper">
+      <div class="phone-screen">
+        <div class="dynamic-island"></div>
+
+        <div class="mobile-address-bar">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          artisanbrews.com/dripper
+        </div>
+
+        <div class="mobile-widget">
+          <div class="mobile-summary-card">
+            <div class="mobile-rating-header">
+              <div class="mobile-score">
+                4.9 <span class="stars-gold">★★★★★</span>
+              </div>
+              <div style="font-size: 11px; color: #64748b;">142 reviews</div>
+            </div>
+            <button class="btn-mobile-write">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"></path></svg>
+              Write a Review
+            </button>
+          </div>
+
+          <div class="mobile-comment">
+            <div class="mobile-author">
+              <div class="avatar-mini">SJ</div>
+              <div>
+                <div class="mobile-author-name">
+                  Sarah Jenkins <span class="mobile-buyer-badge">✓ Buyer</span>
+                </div>
+                <div class="stars-gold" style="font-size: 11px;">★★★★★</div>
+              </div>
+            </div>
+            <div class="mobile-text">
+              Hands down the best coffee dripper we've ever purchased! Incredible heat retention and the subtle artisan glaze looks stunning.
+            </div>
+            <div class="mobile-actions">
+              <span style="color: #2563eb;">❤️ 24 Helpful</span>
+              <span>💬 Reply</span>
+            </div>
+
+            <div class="mobile-reply">
+              <div style="font-size: 11px; font-weight: 700; color: #0f172a;">
+                Artisan Brews <span style="font-size: 10px; color: #2563eb; font-weight: normal;">(Owner)</span>
+              </div>
+              <div style="font-size: 11px; color: #475569;">
+                Thank you Sarah! Delighted you enjoy the morning brews!
+              </div>
+            </div>
+          </div>
+
+          <div class="mobile-comment">
+            <div class="mobile-author">
+              <div class="avatar-mini" style="background: #3b82f6;">LG</div>
+              <div>
+                <div class="mobile-author-name">
+                  Lucas Grey <span class="mobile-buyer-badge">✓ Buyer</span>
+                </div>
+                <div class="stars-gold" style="font-size: 11px;">★★★★★</div>
+              </div>
+            </div>
+            <div class="mobile-text">
+              Super clean interface, lightning-fast loading speed!
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Performance Highlights -->
+    <div class="showcase-info">
+      <div class="feature-card">
+        <div class="card-icon" style="background: #10b981;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+        </div>
+        <div>
+          <div class="card-title">Instant Performance</div>
+          <div class="card-text">Under 25KB gzipped. Zero cumulative layout shift (CLS).</div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="card-icon" style="background: #f59e0b;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        </div>
+        <div>
+          <div class="card-title">Full Multilingual &amp; RTL</div>
+          <div class="card-text">Dynamic layout mirroring for Arabic and Hebrew on mobile.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+

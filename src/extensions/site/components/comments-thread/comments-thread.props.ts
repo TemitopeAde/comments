@@ -31,6 +31,9 @@ export type CommentsThreadProps = {
   loadMoreLabel?: string;
   replyButtonLabel?: string;
   likeButtonLabel?: string;
+  planName?: string;
+  isPro?: boolean;
+  upgradeNoticeLabel?: string;
 
   comments?: Array<CommentItem>;
 

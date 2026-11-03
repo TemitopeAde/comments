@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>02 - Live Website Widget</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1200px;
+      height: 900px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Wix Site Header */
+    .site-nav {
+      height: 64px;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .site-logo {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .site-logo span { color: #3899ec; }
+    .site-links {
+      display: flex;
+      gap: 32px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #64748b;
+    }
+    .site-links a { text-decoration: none; color: inherit; }
+    .site-links a.active { color: #0f172a; font-weight: 600; }
+    .site-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+    }
+    .btn-cart {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    /* Product Page Header Snippet */
+    .page-hero {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 24px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .hero-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .breadcrumbs {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .product-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .product-quick-stats {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .stars-gold {
+      color: #ffb800;
+      font-size: 15px;
+      letter-spacing: 2px;
+    }
+
+    /* Main Comments Content */
+    .content-area {
+      flex: 1;
+      padding: 24px 48px 32px 48px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Widget Box */
+    .widget-container {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .widget-top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .review-summary-group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .big-score {
+      font-size: 36px;
+      font-weight: 900;
+      color: #0f172a;
+      line-height: 1;
+    }
+    .score-breakdown {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .score-subtitle {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .widget-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .filter-pill {
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: #f1f5f9;
+      color: #475569;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    .filter-pill.active {
+      background: #eff6ff;
+      color: #2563eb;
+      border-color: #bfdbfe;
+    }
+    .btn-new-review {
+      background: #3899ec;
+      color: white;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Composer */
+    .composer-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px 16px;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .composer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .composer-toolbar {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .composer-tool {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-weight: 600;
+      font-size: 11px;
+    }
+    .composer-input {
+      font-size: 13px;
+      color: #64748b;
+    }
+    .composer-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .guest-inputs {
+      display: flex;
+      gap: 10px;
+    }
+    .mini-input {
+      background: white;
+      border: 1px solid #cbd5e1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    /* Comments Feed */
+    .comments-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .comment-item {
+      border: 1px solid #f1f5f9;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .comment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #0f172a;
+      color: white;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .avatar-blue { background: #3899ec; }
+    .avatar-purple { background: #8b5cf6; }
+    .user-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-buyer {
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 9999px;
+    }
+    .comment-body {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #334155;
+    }
+    .comment-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .comment-actions span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .reply-box {
+      margin-left: 28px;
+      padding-left: 14px;
+      border-left: 2px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .badge-owner {
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      border: 1px solid #bfdbfe;
+    }
+
+    /* Footer Pagination */
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #64748b;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .page-numbers {
+      display: flex;
+      gap: 6px;
+    }
+    .page-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e2e8f0;
+      background: white;
+      font-weight: 600;
+      color: #475569;
+    }
+    .page-btn.active {
+      background: #0f172a;
+      color: white;
+      border-color: #0f172a;
+    }
+  </style>
+</head>
+<body>
+  <!-- Wix Site Navigation Bar -->
+  <nav class="site-nav">
+    <div class="site-logo">
+      <span>✦</span> KINTO &amp; CO. ROASTERS
+    </div>
+    <div class="site-links">
+      <a href="#">Coffee Gear</a>
+      <a href="#" class="active">Ceramic Drippers</a>
+      <a href="#">Single Origins</a>
+      <a href="#">Brew Guide</a>
+      <a href="#">Journal</a>
+    </div>
+    <div class="site-actions">
+      <span>Search</span>
+      <span>Account</span>
+      <a href="#" class="btn-cart">Bag (2)</a>
+    </div>
+  </nav>
+
+  <!-- Product Context Banner -->
+  <header class="page-hero">
+    <div class="hero-meta">
+      <div class="breadcrumbs">Shop / Pour Over Equipment / Handcrafted Series</div>
+      <h1 class="product-title">Nordic Ceramic Dripper — Matte White (Size 02)</h1>
+      <div class="product-quick-stats">
+        <span class="stars-gold">★★★★★</span>
+        <strong>4.9 / 5.0</strong>
+        <span>•</span>
+        <span>142 verified community ratings</span>
+        <span>•</span>
+        <span style="color: #059669; font-weight: 600;">In Stock &amp; Ships Same Day</span>
+      </div>
+    </div>
+    <div style="font-size: 24px; font-weight: 800; color: #0f172a;">$48.00</div>
+  </header>
+
+  <!-- Main Content Area: Engage Comments Widget -->
+  <main class="content-area">
+    <div class="widget-container">
+      <div class="widget-top-bar">
+        <div class="review-summary-group">
+          <div class="big-score">4.9</div>
+          <div class="score-breakdown">
+            <div class="stars-gold" style="font-size: 16px;">★★★★★</div>
+            <div class="score-subtitle">142 reviews • 98% of customers recommend this</div>
+          </div>
+        </div>
+
+        <div class="widget-controls">
+          <button class="filter-pill active">All Reviews (142)</button>
+          <button class="filter-pill">Verified Buyers (116)</button>
+          <button class="filter-pill">With Photos (34)</button>
+          <button class="btn-new-review">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"></path></svg>
+            Write a Review
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Rich Text Composer -->
+      <div class="composer-box">
+        <div class="composer-header">
+          <div class="composer-toolbar">
+            <span class="composer-tool">B</span>
+            <span class="composer-tool"><i>I</i></span>
+            <span class="composer-tool">Link</span>
+            <span class="composer-tool">• List</span>
+            <span class="composer-tool">📷 Photo</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px; color: #64748b;">Your Rating:</span>
+            <span class="stars-gold" style="cursor: pointer;">★★★★★</span>
+          </div>
+        </div>
+        <div class="composer-input">
+          Share your experience with this brewer: extraction consistency, brew time, ceramic finish...
+        </div>
+        <div class="composer-footer">
+          <div class="guest-inputs">
+            <div class="mini-input">Liam Vance</div>
+            <div class="mini-input">liam.vance@example.com</div>
+          </div>
+          <button class="btn-new-review" style="padding: 6px 14px;">Post Review</button>
+        </div>
+      </div>
+
+      <!-- Comments Stream -->
+      <div class="comments-feed">
+        <div class="comment-item">
+          <div class="comment-header">
+            <div class="user-profile">
+              <div class="avatar avatar-purple">ER</div>
+              <div>
+                <div class="user-name">
+                  Elena Rostova
+                  <span class="badge-buyer">✓ Verified Buyer</span>
+                </div>
+                <div class="stars-gold" style="font-size: 13px;">★★★★★</div>
+              </div>
+            </div>
+            <div style="font-size: 12px; color: #94a3b8;">2 days ago</div>
+          </div>
+          <div class="comment-body">
+            Exceeded my expectations! The ribbed interior channels guide the flow perfectly, preventing any paper stalling. Paired with 18g Ethiopian Yirgacheffe, it produced an intensely floral and crisp cup.
+          </div>
+          <div class="comment-actions">
+            <span style="color: #2563eb; font-weight: 600;">❤️ 18 Helpful</span>
+            <span>💬 Reply (1)</span>
+            <span>Report</span>
+          </div>
+
+          <!-- Threaded Owner Reply -->
+          <div class="reply-box">
+            <div class="comment-header">
+              <div class="user-profile">
+                <div class="avatar" style="width: 26px; height: 26px; font-size: 11px;">KB</div>
+                <div class="user-name" style="font-size: 12px;">
+                  Kinto Brew Master <span class="badge-owner">Site Owner</span>
+                </div>
+              </div>
+              <div style="font-size: 11px; color: #94a3b8;">1 day ago</div>
+            </div>
+            <div class="comment-body" style="font-size: 12px; color: #475569;">
+              Thank you Elena! Yirgacheffe is exactly what we calibrated the 60-degree angle for. Delighted you are enjoying the precision brew!
+            </div>
+          </div>
+        </div>
+
+        <div class="comment-item">
+          <div class="comment-header">
+            <div class="user-profile">
+              <div class="avatar avatar-blue">MV</div>
+              <div>
+                <div class="user-name">
+                  Marcus Vance
+                  <span class="badge-buyer">✓ Verified Buyer</span>
+                </div>
+                <div class="stars-gold" style="font-size: 13px;">★★★★★</div>
+              </div>
+            </div>
+            <div style="font-size: 12px; color: #94a3b8;">4 days ago</div>
+          </div>
+          <div class="comment-body">
+            Solid construction, dishwasher safe, and the matte glaze feels wonderful in hand. Shipping took only two days. 10/10 purchase!
+          </div>
+          <div class="comment-actions">
+            <span>🤍 9 Helpful</span>
+            <span>💬 Reply</span>
+            <span>Report</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <span>Showing 1 to 2 of 142 reviews</span>
+        <div class="page-numbers">
+          <div class="page-btn active">1</div>
+          <div class="page-btn">2</div>
+          <div class="page-btn">3</div>
+          <div class="page-btn">...</div>
+          <div class="page-btn">15</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+

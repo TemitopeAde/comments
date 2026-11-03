@@ -1,6 +1,43 @@
 # Engage Comments — App Market Listing
 
-Drafted for the app's market listing from the official “Add Your App Info” requirements. Video/media assets are intentionally omitted.
+## Media Assets (Wix App Market Specifications)
+
+All media assets follow the official Wix App Market listing requirements (4:3 ratio, minimum 1,200 × 900 px for gallery screenshots, and 540 × 360 px for promotional banner).
+
+### 1. Main Promotional Image
+- **File**: `public/market-media/01-main-promotional.png`
+- **Dimensions**: 1,200 × 900 px (4:3 ratio)
+- **Content**: Engage Comments branding, core tagline ("Add comments, reviews, & testimonials"), key feature pills, and an elevated hero preview of the interactive widget with star ratings, rich composer, pinned review, and owner reply.
+
+### 2. Live Website Widget
+- **File**: `public/market-media/02-live-website-widget.png`
+- **Dimensions**: 1,200 × 900 px (4:3 ratio)
+- **Content**: Seamless integration on a live Wix website, featuring the 4.9-star rating breakdown, filter chips, active rich text composer, verified buyer badges, upvote reactions, threaded owner reply, and pagination.
+
+### 3. Moderation Dashboard
+- **File**: `public/market-media/03-moderation-dashboard.png`
+- **Dimensions**: 1,200 × 900 px (4:3 ratio)
+- **Content**: Site owner dashboard queue showing pending review notifications, status filters (All, Pending, Published, Rejected), search toolbar, and one-click actions: Approve, Reject, Pin, and Owner Reply.
+
+### 4. Community Overview & Analytics
+- **File**: `public/market-media/04-analytics-overview.png`
+- **Dimensions**: 1,200 × 900 px (4:3 ratio)
+- **Content**: Dashboard overview with 4 KPI cards (Total Discussions, Average Rating 4.92, 100% Moderation Speed, Monthly Quota Progress), 30-day activity bar chart, star rating distribution, and live community feed.
+
+### 5. Customization & Multilingual Panel (20 Languages)
+- **File**: `public/market-media/05-customization-multilingual.png`
+- **Dimensions**: 1,200 × 900 px (4:3 ratio)
+- **Content**: Wix Studio editor environment with the Engage Comments side panel open, showcasing layout mode switches, display toggles, brand color pickers, and the active 20-language localization dropdown (Auto-detect + top 20 world languages with RTL support).
+
+### 6. Mobile Responsive View
+- **File**: `public/market-media/06-mobile-responsive.png`
+- **Dimensions**: 1,200 × 900 px (4:3 ratio)
+- **Content**: iPhone device mockup showcasing the mobile-optimized widget with touch-friendly rating stars, compact review cards, nested mobile threading, and zero cumulative layout shift.
+
+### 7. Promotional Banner
+- **File**: `public/market-media/promotional-banner.jpg`
+- **Dimensions**: 540 × 360 px (JPG format)
+- **Content**: Vibrant brand blue gradient background with 3D glassmorphic conversation bubbles, floating star rating accents, and heart reaction pills. Completely clean with NO text and NO logo, in accordance with Wix App Market guidelines.
 
 ## App name
 
@@ -117,5 +154,7 @@ _Add the public URL for the app's terms and conditions before submitting the lis
 - [ ] Confirm the app name is available and does not imply endorsement or affiliation.
 - [ ] Confirm the teaser and description contain no unsupported claims or unrelated brand references.
 - [ ] Upload the app icon from `public/engage-comments-app-icon.png`.
+- [x] Generate 5–6 market listing screenshots (1,200 × 900 px, 4:3 ratio) in `public/market-media/`.
+- [x] Generate promotional banner (540 × 360 px, JPG) in `public/market-media/promotional-banner.jpg`.
 - [ ] Add a demo site URL, if applicable.
 - [ ] Add the public terms and conditions URL.

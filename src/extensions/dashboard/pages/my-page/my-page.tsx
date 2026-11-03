@@ -185,6 +185,7 @@ function DashboardApp() {
   const [moderationSaveState, setModerationSaveState] = useState<
     "idle" | "saving"
   >("idle");
+  const [pendingModerationEmail, setPendingModerationEmail] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -254,11 +255,24 @@ function DashboardApp() {
     }
   }, []);
 
+  const fetchNotificationPreferences = useCallback(async () => {
+    try {
+      const response = await fetchWithAuth(apiUrl("/api/dashboard/notification-preferences"));
+      if (response.ok) {
+        const preferences = await response.json();
+        setPendingModerationEmail(preferences.pendingModerationEnabled === true);
+      }
+    } catch (error) {
+      console.error("Could not load notification preferences:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchOverview();
     fetchWidgetConfig();
     fetchTrialStatus();
-  }, [fetchOverview, fetchWidgetConfig, fetchTrialStatus]);
+    fetchNotificationPreferences();
+  }, [fetchOverview, fetchWidgetConfig, fetchTrialStatus, fetchNotificationPreferences]);
 
   useEffect(() => {
     fetchComments();
@@ -329,7 +343,13 @@ function DashboardApp() {
         }),
       });
 
-      if (res.ok) {
+      const notificationResponse = await fetchWithAuth(apiUrl("/api/dashboard/notification-preferences"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingModerationEnabled: pendingModerationEmail }),
+      });
+
+      if (res.ok && notificationResponse.ok) {
         setWidgetSettings((prev) => ({ ...prev, blockedWords: words }));
         toast.success("Moderation rules saved.");
       } else {
@@ -762,6 +782,20 @@ function DashboardApp() {
                 }
               />
             </div>
+            <div className="setting-row">
+              <div>
+                <h3>Email me when a comment needs approval</h3>
+                <p>Notifications go to the site owner email from your Wix app instance.</p>
+              </div>
+              <input
+                className="switch"
+                type="checkbox"
+                role="switch"
+                aria-label="Email the site owner when comments need approval"
+                checked={pendingModerationEmail}
+                onChange={(event) => setPendingModerationEmail(event.target.checked)}
+              />
+            </div>
             <div className="setting-row vertical">
               <label htmlFor="blocked-word">Blocked words & phrases</label>
               <p>
@@ -822,38 +856,14 @@ function DashboardApp() {
             <section className="panel settings">
               <span className="badge">YOUR SUBSCRIPTION</span>
               <h2>{stats.plan} plan</h2>
-              <p>Keep an eye on your community’s monthly usage.</p>
-              <div className="setting-row">
-                <strong>Monthly comments</strong>
-                <span>
-                  {stats.usage.commentsCreated} / {stats.usage.commentsLimit}
-                </span>
-              </div>
-              <progress
-                aria-label="Monthly comment usage"
-                max={Math.max(1, stats.usage.commentsLimit)}
-                value={stats.usage.commentsCreated}
-              />
+              <p>Everything you need to grow your community.</p>
               <div className="plan-grid">
                 <div>
-                  <h3>Free</h3>
-                  <p>For starting a conversation.</p>
-                  <ul>
-                    <li>1 active widget</li>
-                    <li>Comments & replies</li>
-                    <li>100 comments per month</li>
-                  </ul>
-                </div>
-                <div>
                   <h3>Pro</h3>
-                  <p>For growing communities.</p>
-                  <ul>
-                    <li>Unlimited widgets</li>
-                    <li>Star ratings & reviews</li>
-                    <li>5,000 comments per month</li>
-                    <li>CSV exports & custom themes</li>
-                    <li>Official owner replies</li>
-                  </ul>
+                  <p>
+                    Grow your community with unlimited widgets, comments, ratings and
+                    reviews, CSV exports, custom themes, and official owner replies.
+                  </p>
                 </div>
               </div>
               {trialStatus.available && trialStatus.upgradeUrl && (

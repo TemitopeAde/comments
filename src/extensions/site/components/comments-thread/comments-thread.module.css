@@ -149,6 +149,29 @@
   pointer-events: auto;
 }
 
+.submitButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.upgradeNotice {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.upgradeText {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.root[dir="rtl"] .upgradeNotice {
+  justify-content: flex-start;
+}
+
 .list {
   box-sizing: border-box;
   display: flex;

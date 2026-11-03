@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>04 - Analytics &amp; Community Overview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1200px;
+      height: 900px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      display: flex;
+    }
+
+    /* Sidebar */
+    aside {
+      width: 240px;
+      height: 100%;
+      background: #ffffff;
+      border-right: 1px solid #e2e8f0;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+      padding-left: 8px;
+    }
+    .brand-icon {
+      width: 26px;
+      height: 26px;
+      background: #3899ec;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .brand-dot { color: #3899ec; }
+    .nav-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      padding-left: 8px;
+      margin-bottom: -16px;
+    }
+    nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    /* Main Content */
+    main {
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 32px;
+      gap: 16px;
+    }
+    .top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .title-group h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+    }
+    .title-group p {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .btn-upgrade {
+      background: #3899ec;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(56, 153, 236, 0.3);
+    }
+
+    /* 4 KPI Cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .kpi-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.1;
+    }
+    .kpi-footer {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: #f1f5f9;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #3899ec;
+      border-radius: 9999px;
+    }
+
+    /* Charts Row */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
+      height: 380px;
+    }
+    .chart-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .chart-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .chart-period {
+      font-size: 12px;
+      color: #64748b;
+      background: #f8fafc;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Visual Bar Chart */
+    .bar-chart-container {
+      height: 180px;
+      display: flex;
+      align-items: flex-end;
+      gap: 14px;
+      padding-top: 10px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .bar-fill {
+      width: 100%;
+      max-width: 28px;
+      background: linear-gradient(180deg, #3899ec 0%, #2563eb 100%);
+      border-radius: 4px 4px 0 0;
+      transition: height 0.3s ease;
+      position: relative;
+    }
+    .bar-fill.highlight {
+      background: linear-gradient(180deg, #60a5fa 0%, #3899ec 100%);
+    }
+    .bar-label {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .bar-val {
+      font-size: 10px;
+      color: #475569;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    /* Rating Breakdown Rows */
+    .rating-distribution {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .dist-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .dist-label {
+      width: 50px;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .dist-bar-track {
+      flex: 1;
+      height: 8px;
+      background: #f1f5f9;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+    .dist-bar-fill {
+      height: 100%;
+      background: #ffb800;
+      border-radius: 9999px;
+    }
+    .dist-pct {
+      width: 44px;
+      text-align: right;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    /* Sentiment summary box */
+    .sentiment-box {
+      margin-top: auto;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sentiment-score {
+      font-size: 24px;
+      font-weight: 800;
+      color: #059669;
+    }
+    .sentiment-text {
+      font-size: 12px;
+      color: #065f46;
+      line-height: 1.3;
+    }
+
+    /* Bottom Row: Recent Activity */
+    .bottom-row {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      </div>
+      engage<span class="brand-dot">.</span>
+    </div>
+
+    <p class="nav-label">WORKSPACE</p>
+    <nav>
+      <div class="nav-item active">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        Overview
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        Comments Moderation
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+        Plans &amp; Usage
+      </div>
+      <div class="nav-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        Help &amp; Docs
+      </div>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="top-header">
+      <div class="title-group">
+        <h1>Community Overview &amp; Analytics</h1>
+        <p>Monitor visitor conversations, customer satisfaction, and quota usage in real-time.</p>
+      </div>
+      <button class="btn-upgrade">
+        <span>Pro Plan Active</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+
+    <!-- 4 KPI Metrics -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>TOTAL DISCUSSIONS</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div class="kpi-value">1,248</div>
+        <div class="kpi-footer">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          +18.4% this month
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>AVERAGE RATING</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#ffb800" stroke="#ffb800" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        </div>
+        <div class="kpi-value">4.92</div>
+        <div class="kpi-footer" style="color: #64748b;">
+          Based on 842 star ratings
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>MODERATION SPEED</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        </div>
+        <div class="kpi-value">100%</div>
+        <div class="kpi-footer">
+          All caught up (0 in queue)
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">
+          <span>MONTHLY QUOTA</span>
+          <span style="font-size: 11px; color: #3899ec; font-weight: 700;">PRO</span>
+        </div>
+        <div class="kpi-value" style="font-size: 22px;">240 <span style="font-size: 14px; color: #94a3b8; font-weight: 500;">/ 500</span></div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width: 48%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <!-- Activity Bar Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Visitor Submissions &amp; Engagement</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Daily submissions across all site pages</div>
+          </div>
+          <div class="chart-period">Last 30 Days ▾</div>
+        </div>
+
+        <div class="bar-chart-container">
+          <div class="bar-col">
+            <span class="bar-val">18</span>
+            <div class="bar-fill" style="height: 35%;"></div>
+            <span class="bar-label">W1</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">26</span>
+            <div class="bar-fill" style="height: 50%;"></div>
+            <span class="bar-label">W2</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">34</span>
+            <div class="bar-fill" style="height: 65%;"></div>
+            <span class="bar-label">W3</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">42</span>
+            <div class="bar-fill" style="height: 78%;"></div>
+            <span class="bar-label">W4</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">58</span>
+            <div class="bar-fill highlight" style="height: 95%;"></div>
+            <span class="bar-label">Peak</span>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val">46</span>
+            <div class="bar-fill" style="height: 82%;"></div>
+            <span class="bar-label">Now</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rating Distribution -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Rating Distribution</div>
+          <div style="font-size: 12px; font-weight: 700; color: #ffb800;">★★★★★</div>
+        </div>
+
+        <div class="rating-distribution">
+          <div class="dist-row">
+            <span class="dist-label">5 ★</span>
+            <div class="dist-bar-track"><div class="dist-bar-fill" style="width: 88%;"></div></div>
+            <span class="dist-pct">88%</span>
+          </div>
+          <div class="dist-row">
+            <span class="dist-label">4 ★</span>
+            <div class="dist-bar-track"><div class="dist-bar-fill" style="width: 9%;"></div></div>
+            <span class="dist-pct">9%</span>
+          </div>
+          <div class="dist-row">
+            <span class="dist-label">3 ★</span>
+            <div class="dist-bar-track"><div class="dist-bar-fill" style="width: 2%;"></div></div>
+            <span class="dist-pct">2%</span>
+          </div>
+          <div class="dist-row">
+            <span class="dist-label">2 ★</span>
+            <div class="dist-bar-track"><div class="dist-bar-fill" style="width: 1%;"></div></div>
+            <span class="dist-pct">1%</span>
+          </div>
+          <div class="dist-row">
+            <span class="dist-label">1 ★</span>
+            <div class="dist-bar-track"><div class="dist-bar-fill" style="width: 0%;"></div></div>
+            <span class="dist-pct">0%</span>
+          </div>
+        </div>
+
+        <div class="sentiment-box">
+          <div class="sentiment-score">98%</div>
+          <div class="sentiment-text">
+            <strong>Exceptional Customer Sentiment</strong><br>
+            98% of customers rated their experience 4 or 5 stars.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Activity Ticker -->
+    <div class="bottom-row">
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+        <div class="live-dot"></div>
+        <strong>Live Stream:</strong>
+        <span style="color: #64748b;">Elena Rostova upvoted a discussion on "Nordic Ceramic Dripper" (3 mins ago)</span>
+      </div>
+      <div style="font-size: 12px; color: #2563eb; font-weight: 600; cursor: pointer;">
+        View Live Comments Feed →
+      </div>
+    </div>
+  </main>
+</body>
+</html>

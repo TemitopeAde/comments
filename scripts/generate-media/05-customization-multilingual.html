@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>05 - Customization &amp; Multilingual Panel</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1200px;
+      height: 900px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #1e1e24;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Wix Studio Top Nav */
+    .studio-bar {
+      height: 48px;
+      background: #18181b;
+      border-bottom: 1px solid #27272a;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .studio-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .wix-logo {
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .page-dropdown {
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: #d4d4d8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .device-switcher {
+      display: flex;
+      gap: 4px;
+      background: #27272a;
+      padding: 3px;
+      border-radius: 6px;
+    }
+    .device-btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      color: #a1a1aa;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .device-btn.active {
+      background: #3f3f46;
+      color: #ffffff;
+    }
+    .studio-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-preview {
+      background: transparent;
+      border: 1px solid #3f3f46;
+      color: #ffffff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .btn-publish {
+      background: #3899ec;
+      color: #ffffff;
+      border: none;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    /* Main Studio Canvas & Inspector */
+    .studio-workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Canvas (Left) */
+    .canvas-viewport {
+      flex: 1;
+      background: #121215;
+      padding: 32px 40px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .mock-webpage {
+      width: 100%;
+      max-width: 720px;
+      height: 100%;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    .mock-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    /* Selected Widget Outline */
+    .selected-widget-wrapper {
+      margin: 20px 24px;
+      border: 2px solid #3899ec;
+      border-radius: 8px;
+      position: relative;
+      background: #ffffff;
+      padding: 16px;
+    }
+    .selection-tag {
+      position: absolute;
+      top: -24px;
+      left: -2px;
+      background: #3899ec;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px 4px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .resize-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #ffffff;
+      border: 2px solid #3899ec;
+      border-radius: 2px;
+    }
+    .handle-tl { top: -5px; left: -5px; }
+    .handle-tr { top: -5px; right: -5px; }
+    .handle-bl { bottom: -5px; left: -5px; }
+    .handle-br { bottom: -5px; right: -5px; }
+
+    /* Right Inspector Side Panel */
+    .inspector-panel {
+      width: 380px;
+      background: #ffffff;
+      color: #0f172a;
+      border-left: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .inspector-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .inspector-title {
+      font-size: 14px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .inspector-content {
+      flex: 1;
+      padding: 16px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Accordion Item */
+    .accordion-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .accordion-head {
+      background: #f8fafc;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .accordion-body {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Language Dropdown Element */
+    .lang-selector-card {
+      background: #eff6ff;
+      border: 1.5px solid #3899ec;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .lang-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e40af;
+    }
+    .lang-badge-20 {
+      background: #3899ec;
+      color: white;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 9999px;
+    }
+
+    .dropdown-trigger {
+      background: #ffffff;
+      border: 1px solid #3899ec;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(56, 153, 236, 0.15);
+    }
+
+    /* Expanded Language Menu */
+    .lang-menu-box {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+      max-height: 240px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .lang-item {
+      padding: 7px 12px;
+      font-size: 12px;
+      color: #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .lang-item.selected {
+      background: #eff6ff;
+      color: #2563eb;
+      font-weight: 700;
+    }
+    .lang-item:hover {
+      background: #f8fafc;
+    }
+    .rtl-badge {
+      font-size: 10px;
+      background: #f1f5f9;
+      color: #64748b;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* Switch toggle row */
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #334155;
+      font-weight: 500;
+    }
+    .switch-ui {
+      width: 32px;
+      height: 18px;
+      background: #10b981;
+      border-radius: 9999px;
+      position: relative;
+    }
+    .switch-ball {
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+    }
+
+    /* Color picker preview */
+    .color-swatch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #334155;
+    }
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Studio Bar -->
+  <header class="studio-bar">
+    <div class="studio-left">
+      <div class="wix-logo">
+        <span style="color: #3899ec;">✦</span> Wix Studio
+      </div>
+      <div class="page-dropdown">
+        <span>Page: Shop / Ceramic Dripper</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="device-switcher">
+        <div class="device-btn active">Desktop</div>
+        <div class="device-btn">Tablet</div>
+        <div class="device-btn">Mobile</div>
+      </div>
+    </div>
+    <div class="studio-right">
+      <span style="font-size: 12px; color: #a1a1aa;">Changes saved automatically</span>
+      <button class="btn-preview">Preview</button>
+      <button class="btn-publish">Publish Site</button>
+    </div>
+  </header>
+
+  <div class="studio-workspace">
+    <!-- Center Canvas -->
+    <div class="canvas-viewport">
+      <div class="mock-webpage">
+        <div class="mock-header">
+          <span>Kinto &amp; Co. Coffee Gear</span>
+          <span style="color: #64748b; font-size: 12px;">Cart (0)</span>
+        </div>
+
+        <div style="padding: 16px 24px; color: #0f172a;">
+          <h2 style="font-size: 18px; font-weight: 800;">Nordic Ceramic Dripper</h2>
+          <p style="font-size: 12px; color: #64748b;">Handmade ceramic pour over coffee brewer</p>
+        </div>
+
+        <!-- Selected Widget Container with Handles -->
+        <div class="selected-widget-wrapper">
+          <div class="selection-tag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            Engage Comments Widget
+          </div>
+          <div class="resize-handle handle-tl"></div>
+          <div class="resize-handle handle-tr"></div>
+          <div class="resize-handle handle-bl"></div>
+          <div class="resize-handle handle-br"></div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+            <div style="font-weight: 800; font-size: 14px; color: #0f172a;">Customer Reviews (142)</div>
+            <div style="color: #ffb800; font-size: 14px;">★★★★★ 4.9</div>
+          </div>
+          <div style="padding: 10px 0; font-size: 12px; color: #64748b; line-height: 1.4;">
+            Elena Rostova: "Exceeded my expectations! The ribbed interior channels guide the flow perfectly..."
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Side Settings Inspector Panel -->
+    <aside class="inspector-panel">
+      <div class="inspector-header">
+        <div class="inspector-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3899ec" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          Engage Comments Settings
+        </div>
+        <span style="font-size: 11px; color: #10b981; font-weight: 700;">● Live</span>
+      </div>
+
+      <div class="inspector-content">
+        <!-- Layout Selection -->
+        <div class="accordion-box">
+          <div class="accordion-head">
+            <span>LAYOUT MODE</span>
+            <span>▾</span>
+          </div>
+          <div class="accordion-body">
+            <div style="display: flex; gap: 8px;">
+              <button style="flex: 1; padding: 6px; font-size: 11px; font-weight: 700; background: #eff6ff; color: #2563eb; border: 1.5px solid #3899ec; border-radius: 6px;">Threaded Comments</button>
+              <button style="flex: 1; padding: 6px; font-size: 11px; font-weight: 500; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px;">Testimonials Grid</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Language & Localization Section (PROMINENTLY HIGHLIGHTED) -->
+        <div class="lang-selector-card">
+          <div class="lang-header">
+            <span>LANGUAGE &amp; LOCALIZATION</span>
+            <span class="lang-badge-20">20 LANGUAGES</span>
+          </div>
+
+          <div class="dropdown-trigger">
+            <span>🌐 Auto-detect (Wix Multilingual)</span>
+            <span style="color: #3899ec;">▲</span>
+          </div>
+
+          <!-- Open Dropdown Menu -->
+          <div class="lang-menu-box">
+            <div class="lang-item selected">
+              <span>✓ Auto-detect (Wix Multilingual)</span>
+              <span style="font-size: 10px; color: #2563eb;">Recommended</span>
+            </div>
+            <div class="lang-item"><span>🇺🇸 English (en)</span></div>
+            <div class="lang-item"><span>🇪🇸 Español (es)</span></div>
+            <div class="lang-item"><span>🇫🇷 Français (fr)</span></div>
+            <div class="lang-item"><span>🇩🇪 Deutsch (de)</span></div>
+            <div class="lang-item"><span>🇯🇵 日本語 (ja)</span></div>
+            <div class="lang-item"><span>🇸🇦 العربية (ar)</span><span class="rtl-badge">RTL</span></div>
+            <div class="lang-item"><span>🇮🇱 עברית (he)</span><span class="rtl-badge">RTL</span></div>
+            <div class="lang-item"><span>🇰🇷 한국어 (ko)</span></div>
+            <div class="lang-item"><span>🇨🇳 简体中文 (zh)</span></div>
+            <div class="lang-item"><span>🇮🇹 Italiano (it)</span></div>
+            <div class="lang-item"><span>🇳🇱 Nederlands (nl)</span></div>
+            <div class="lang-item"><span>🇵🇹 Português (pt)</span></div>
+            <div class="lang-item"><span>🇷🇺 Русский (ru)</span></div>
+            <div class="lang-item"><span>🇵🇱 Polski (pl)</span></div>
+            <div class="lang-item"><span>🇸🇪 Svenska (sv)</span></div>
+            <div class="lang-item"><span>🇩🇰 Dansk (da)</span></div>
+            <div class="lang-item"><span>🇫🇮 Suomi (fi)</span></div>
+            <div class="lang-item"><span>🇳🇴 Norsk (no)</span></div>
+            <div class="lang-item"><span>🇹🇷 Türkçe (tr)</span></div>
+            <div class="lang-item"><span>🇮🇳 हिन्दी (hi)</span></div>
+          </div>
+
+          <div style="font-size: 11px; color: #475569; line-height: 1.3;">
+            Automatically detects visitor locale or matches Wix site settings. RTL mirrored layout applied for Arabic &amp; Hebrew.
+          </div>
+        </div>
+
+        <!-- Display Toggles -->
+        <div class="accordion-box">
+          <div class="accordion-head">
+            <span>DISPLAY &amp; MODERATION</span>
+            <span>▾</span>
+          </div>
+          <div class="accordion-body">
+            <div class="toggle-row">
+              <span>Enable Star Ratings</span>
+              <div class="switch-ui"><div class="switch-ball"></div></div>
+            </div>
+            <div class="toggle-row">
+              <span>Allow Guest Comments</span>
+              <div class="switch-ui"><div class="switch-ball"></div></div>
+            </div>
+            <div class="toggle-row">
+              <span>Require Approval Before Post</span>
+              <div class="switch-ui"><div class="switch-ball"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colors & Styling -->
+        <div class="accordion-box">
+          <div class="accordion-head">
+            <span>COLORS &amp; BRANDING</span>
+            <span>▾</span>
+          </div>
+          <div class="accordion-body">
+            <div class="color-swatch-row">
+              <span>Primary Button Color</span>
+              <div class="color-swatch" style="background: #3899ec;"></div>
+            </div>
+            <div class="color-swatch-row">
+              <span>Star Rating Color</span>
+              <div class="color-swatch" style="background: #ffb800;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>
+

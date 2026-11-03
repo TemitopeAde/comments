@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
-import { createComment, getPublishedComments, toPublicComment } from '../../../lib/services/commentsService';
+import { createComment, getCurrentPlanName, getPublishedComments, toPublicComment } from '../../../lib/services/commentsService';
 import { createCommentSchema } from '../../../lib/validation/schemas';
+import { notifyOwnerOfPendingComment } from '../../../lib/services/notificationService';
 
 export const GET: APIRoute = async ({ request }) => {
   try {
@@ -39,6 +40,14 @@ export const GET: APIRoute = async ({ request }) => {
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    const planName = await getCurrentPlanName();
+    if (planName.trim().toLowerCase() !== 'pro') {
+      return Response.json(
+        { error: 'Commenting is only available on the Pro plan. Please upgrade to Pro.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const validated = createCommentSchema.parse(body);
 
@@ -52,6 +61,8 @@ export const POST: APIRoute = async ({ request }) => {
       parentCommentId: validated.parentCommentId,
       clientSessionId: validated.clientSessionId,
     });
+
+    if (comment.status === 'pending') await notifyOwnerOfPendingComment(comment);
 
     return Response.json(
       {

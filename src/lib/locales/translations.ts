@@ -152,7 +152,9 @@ export type LocaleKey =
   | 'upgradeToPro'
   | 'saveSettings'
   | 'settingsSaved'
-  | 'exportDownloaded';
+  | 'exportDownloaded'
+  | 'upgradeToPostComments'
+  | 'proRequired';
 
 export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
   en: {
@@ -280,6 +282,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Save Settings',
     settingsSaved: 'Settings saved successfully!',
     exportDownloaded: 'Export downloaded successfully!',
+    upgradeToPostComments: "Upgrade to Pro to post comments",
+    proRequired: "Pro plan required",
   },
   es: {
     comments: 'Comentarios',
@@ -406,6 +410,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Guardar ajustes',
     settingsSaved: '¡Ajustes guardados con éxito!',
     exportDownloaded: '¡Exportación descargada con éxito!',
+    upgradeToPostComments: "Actualiza a Pro para publicar comentarios",
+    proRequired: "Se requiere plan Pro",
   },
   fr: {
     comments: 'Commentaires',
@@ -532,6 +538,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Enregistrer les paramètres',
     settingsSaved: 'Paramètres enregistrés avec succès !',
     exportDownloaded: 'Exportation téléchargée avec succès !',
+    upgradeToPostComments: "Passez à Pro pour publier des commentaires",
+    proRequired: "Forfait Pro requis",
   },
   de: {
     comments: 'Kommentare',
@@ -658,6 +666,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Einstellungen speichern',
     settingsSaved: 'Einstellungen erfolgreich gespeichert!',
     exportDownloaded: 'Export erfolgreich heruntergeladen!',
+    upgradeToPostComments: "Auf Pro upgraden, um Kommentare zu verfassen",
+    proRequired: "Pro-Tarif erforderlich",
   },
   it: {
     comments: 'Commenti',
@@ -784,6 +794,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Salva impostazioni',
     settingsSaved: 'Impostazioni salvate con successo!',
     exportDownloaded: 'File esportato scaricato con successo!',
+    upgradeToPostComments: "Passa a Pro per pubblicare commenti",
+    proRequired: "Piano Pro richiesto",
   },
   pt: {
     comments: 'Comentários',
@@ -910,6 +922,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Salvar configurações',
     settingsSaved: 'Configurações salvas com sucesso!',
     exportDownloaded: 'Exportação baixada com sucesso!',
+    upgradeToPostComments: "Faça upgrade para o Pro para publicar comentários",
+    proRequired: "Plano Pro obrigatório",
   },
   nl: {
     comments: 'Reacties',
@@ -1036,6 +1050,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Instellingen opslaan',
     settingsSaved: 'Instellingen succesvol opgeslagen!',
     exportDownloaded: 'Export succesvol gedownload!',
+    upgradeToPostComments: "Upgrade naar Pro om reacties te plaatsen",
+    proRequired: "Pro-abonnement vereist",
   },
   ja: {
     comments: 'コメント',
@@ -1162,6 +1178,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: '設定を保存',
     settingsSaved: '設定が保存されました！',
     exportDownloaded: 'エクスポートがダウンロードされました！',
+    upgradeToPostComments: "コメントを投稿するにはProにアップグレードしてください",
+    proRequired: "Proプランが必要です",
   },
   zh: {
     comments: '评论',
@@ -1288,6 +1306,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: '保存设置',
     settingsSaved: '设置保存成功！',
     exportDownloaded: '导出文件下载成功！',
+    upgradeToPostComments: "升级至Pro以发表评论",
+    proRequired: "需要Pro套餐",
   },
   ko: {
     comments: '댓글',
@@ -1414,6 +1434,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: '설정 저장',
     settingsSaved: '설정이 성공적으로 저장되었습니다!',
     exportDownloaded: '내보내기 파일이 다운로드되었습니다!',
+    upgradeToPostComments: "댓글을 작성하려면 Pro로 업그레이드하세요",
+    proRequired: "Pro 요금제가 필요합니다",
   },
   ru: {
     comments: 'Комментарии',
@@ -1540,6 +1562,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Сохранить настройки',
     settingsSaved: 'Настройки успешно сохранены!',
     exportDownloaded: 'Файл экспорта успешно скачан!',
+    upgradeToPostComments: "Перейдите на Pro, чтобы оставлять комментарии",
+    proRequired: "Требуется тариф Pro",
   },
   pl: {
     comments: 'Komentarze',
@@ -1666,6 +1690,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Zapisz ustawienia',
     settingsSaved: 'Ustawienia zostały pomyślnie zapisane!',
     exportDownloaded: 'Plik eksportu został pobrany!',
+    upgradeToPostComments: "Przejdź na Pro, aby dodawać komentarze",
+    proRequired: "Wymagany plan Pro",
   },
   sv: {
     comments: 'Kommentarer',
@@ -1792,6 +1818,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Spara inställningar',
     settingsSaved: 'Inställningarna har sparats!',
     exportDownloaded: 'Exportfilen har laddats ned!',
+    upgradeToPostComments: "Uppgradera till Pro för att skriva kommentarer",
+    proRequired: "Pro-plan krävs",
   },
   da: {
     comments: 'Kommentarer',
@@ -1918,6 +1946,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Gem indstillinger',
     settingsSaved: 'Indstillinger er gemt!',
     exportDownloaded: 'Eksportfil downloadet!',
+    upgradeToPostComments: "Opgrader til Pro for at skrive kommentarer",
+    proRequired: "Pro-plan påkrævet",
   },
   fi: {
     comments: 'Kommentit',
@@ -2044,6 +2074,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Tallenna asetukset',
     settingsSaved: 'Asetukset tallennettu onnistuneesti!',
     exportDownloaded: 'Tiedosto ladattu onnistuneesti!',
+    upgradeToPostComments: "Päivitä Prohon kommentoidaksesi",
+    proRequired: "Pro-tilaus vaaditaan",
   },
   no: {
     comments: 'Kommentarer',
@@ -2170,6 +2202,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Lagre innstillinger',
     settingsSaved: 'Innstillinger lagret!',
     exportDownloaded: 'Eksportfil lastet ned!',
+    upgradeToPostComments: "Oppgrader til Pro for å legge inn kommentarer",
+    proRequired: "Pro-plan kreves",
   },
   tr: {
     comments: 'Yorumlar',
@@ -2296,6 +2330,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'Ayarları Kaydet',
     settingsSaved: 'Ayarlar başarıyla kaydedildi!',
     exportDownloaded: 'Dışa aktarma dosyası indirildi!',
+    upgradeToPostComments: "Yorum yapmak için Pro’ya yükseltin",
+    proRequired: "Pro planı gereklidir",
   },
   ar: {
     comments: 'التعليقات',
@@ -2422,6 +2458,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'حفظ الإعدادات',
     settingsSaved: 'تم حفظ الإعدادات بنجاح!',
     exportDownloaded: 'تم تنزيل ملف التصدير بنجاح!',
+    upgradeToPostComments: "قم بالترقية إلى Pro لنشر التعليقات",
+    proRequired: "مطلوب باقة Pro",
   },
   he: {
     comments: 'תגובות',
@@ -2548,6 +2586,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'שמור הגדרות',
     settingsSaved: 'ההגדרות נשמרו בהצלחה!',
     exportDownloaded: 'קובץ הייצוא הורד בהצלחה!',
+    upgradeToPostComments: "שדרג ל-Pro כדי לפרסם תגובות",
+    proRequired: "נדרשת תוכנית Pro",
   },
   hi: {
     comments: 'टिप्पणियाँ',
@@ -2674,6 +2714,8 @@ export const TRANSLATIONS: Record<string, Record<LocaleKey, string>> = {
     saveSettings: 'सेटिंग्स सहेजें',
     settingsSaved: 'सेटिंग्स सफलतापूर्वक सहेजी गईं!',
     exportDownloaded: 'फ़ाइल सफलतापूर्वक डाउनलोड की गई!',
+    upgradeToPostComments: "टिप्पणी पोस्ट करने के लिए Pro में अपग्रेड करें",
+    proRequired: "Pro प्लान आवश्यक है",
   },
 };
 

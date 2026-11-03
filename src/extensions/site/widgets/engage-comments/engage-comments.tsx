@@ -188,6 +188,8 @@ interface WidgetProps {
   editorToolbar?: string;
   editorPlaceholder?: string;
   language?: string;
+  planName?: string;
+  isPro?: string | boolean;
 }
 
 type EditorToolbarOptions = {
@@ -236,6 +238,8 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   editorToolbar,
   editorPlaceholder,
   language = 'auto',
+  planName: initialPlanName,
+  isPro: initialIsPro,
 }) => {
   const currentLocale = useMemo(() => resolveLocale(language), [language]);
   const direction = useMemo(() => getLocaleDirection(currentLocale), [currentLocale]);
@@ -243,6 +247,14 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
     (key: LocaleKey, params?: Record<string, string | number>) => getTranslation(currentLocale, key, params),
     [currentLocale]
   );
+
+  const [_planName, setPlanName] = useState<string>(() => initialPlanName || 'Basic');
+  const [isPro, setIsPro] = useState<boolean>(() => {
+    if (typeof initialIsPro === 'boolean') return initialIsPro;
+    if (typeof initialIsPro === 'string') return initialIsPro.toLowerCase() === 'true';
+    if (initialPlanName) return initialPlanName.trim().toLowerCase() === 'pro';
+    return false;
+  });
 
   const displayTitle = title && title !== 'Comments & Feedback' ? title : t('comments');
   const displaySubtitle = subtitle && subtitle !== 'Join the conversation and share your verified thoughts' ? subtitle : t('discussionSubtitle');
@@ -374,6 +386,13 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         if (!response.ok) return;
         const data = await response.json();
         if (Array.isArray(data.blockedWords)) setBlockedWords(data.blockedWords);
+        if (typeof data.isPro === 'boolean') {
+          setIsPro(data.isPro);
+          if (data.planName) setPlanName(data.planName);
+        } else if (data.planName) {
+          setPlanName(data.planName);
+          setIsPro(String(data.planName).trim().toLowerCase() === 'pro');
+        }
       })
       .catch((error) => console.error('Failed to load moderation settings:', error));
   }, [widgetKey]);
@@ -427,6 +446,13 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
         setMemberResolved(true);
         hasMoreRef.current = Boolean(data.hasMore);
         setHasMore(Boolean(data.hasMore));
+        if (typeof data.isPro === 'boolean') {
+          setIsPro(data.isPro);
+          if (data.planName) setPlanName(data.planName);
+        } else if (data.planName) {
+          setPlanName(data.planName);
+          setIsPro(String(data.planName).trim().toLowerCase() === 'pro');
+        }
       }
     } catch (e) {
       console.error('Failed to load comments:', e);
@@ -461,6 +487,10 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isPro) {
+      toast.error(t('upgradeToPostComments'));
+      return;
+    }
     if (!isGuestPostingEnabled) return;
     if (!contentLength || blockedCommentWords.length > 0) return;
 
@@ -639,6 +669,10 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
   };
 
   const handleSubmitReply = async (commentId: string) => {
+    if (!isPro) {
+      toast.error(t('upgradeToPostComments'));
+      return;
+    }
     if (!getRichTextPlainTextForEditor(replyText) || blockedReplyWords.length > 0) return;
     const parentId = replyingToId || commentId;
 
@@ -933,11 +967,21 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
           <span className={styles.charCount}>
             {contentLength} {t('characters')}
           </span>
-          <button type="submit" className={styles.submitBtn} disabled={!isGuestPostingEnabled || submitting || !contentLength}>
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={!isPro || !isGuestPostingEnabled || submitting || !contentLength}
+            title={!isPro ? t('upgradeToPostComments') : undefined}
+          >
             {submitting && <Spinner />}
             {!isGuestPostingEnabled ? t('guestPostingDisabled') : submitting ? t('posting') : t('postComment')}
           </button>
         </div>
+        {!isPro && (
+          <div className={styles.upgradeNotice}>
+            <span className={styles.upgradeText}>{t('upgradeToPostComments')}</span>
+          </div>
+        )}
       </form>
 
       {/* Toolbar / Sort */}
@@ -1162,13 +1206,19 @@ const EngageCommentsWidget: FC<WidgetProps> = ({
                     <button
                       type="button"
                       className={styles.submitBtn}
-                      disabled={replySubmitting || !getRichTextPlainTextForEditor(replyText) || blockedReplyWords.length > 0}
+                      disabled={!isPro || replySubmitting || !getRichTextPlainTextForEditor(replyText) || blockedReplyWords.length > 0}
                       onClick={() => handleSubmitReply(comment._id)}
+                      title={!isPro ? t('upgradeToPostComments') : undefined}
                     >
                       {replySubmitting && <Spinner />}
                       {t('sendReply')}
                     </button>
                   </div>
+                  {!isPro && (
+                    <div className={styles.upgradeNoticeSmall}>
+                      <span className={styles.upgradeText}>{t('upgradeToPostComments')}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1331,5 +1381,7 @@ export default reactToWebComponent(EngageCommentsWidget, React, ReactDOM as any,
     editorToolbar: 'string',
     editorPlaceholder: 'string',
     language: 'string',
+    planName: 'string',
+    isPro: 'string',
   },
 });

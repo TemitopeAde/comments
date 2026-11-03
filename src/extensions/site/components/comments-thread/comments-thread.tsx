@@ -25,6 +25,9 @@ export const CommentsThread: FC<CommentsThreadProps & { locale?: string }> = (pr
     loadMoreLabel,
     replyButtonLabel,
     likeButtonLabel,
+    planName,
+    isPro: propIsPro,
+    upgradeNoticeLabel,
     comments,
     elementProps,
     locale,
@@ -36,6 +39,11 @@ export const CommentsThread: FC<CommentsThreadProps & { locale?: string }> = (pr
     return (key: LocaleKey, params?: Record<string, string | number>) =>
       getTranslation(currentLocale, key, params);
   }, [currentLocale]);
+
+  const isPro = typeof propIsPro === 'boolean'
+    ? propIsPro
+    : (planName || '').trim().toLowerCase() === 'pro';
+  const displayUpgradeNotice = upgradeNoticeLabel || t('upgradeToPostComments');
 
   const displayTitle = title || t('discussionTitle');
   const displaySubtitle = subtitle !== undefined ? subtitle : t('discussionSubtitle');
@@ -341,6 +349,7 @@ export const CommentsThread: FC<CommentsThreadProps & { locale?: string }> = (pr
           <button
             type="button"
             {...submitProps}
+            disabled={!isPro}
             aria-label={submitA11y?.ariaLabel || displaySubmitLabel}
             className={classNames(
               'comments-thread-submit-button',
@@ -351,6 +360,11 @@ export const CommentsThread: FC<CommentsThreadProps & { locale?: string }> = (pr
             {displaySubmitLabel}
           </button>
         </div>
+        {!isPro && (
+          <div className={styles.upgradeNotice}>
+            <span className={styles.upgradeText}>{displayUpgradeNotice}</span>
+          </div>
+        )}
       </div>
 
       <div

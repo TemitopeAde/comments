@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Promotional Banner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 540px;
+      height: 360px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #091a48 0%, #1150d6 50%, #0099ff 100%);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Ambient Lighting */
+    .glow-top {
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(255, 200, 50, 0.3) 0%, rgba(255, 200, 50, 0) 70%);
+      border-radius: 50%;
+    }
+    .glow-bottom {
+      position: absolute;
+      bottom: -80px;
+      left: -40px;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, rgba(0, 240, 255, 0.35) 0%, rgba(0, 240, 255, 0) 70%);
+      border-radius: 50%;
+    }
+
+    /* Floating Abstract UI elements (No text, No logo) */
+    .scene-container {
+      position: relative;
+      width: 440px;
+      height: 280px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Central Glass Discussion Bubble */
+    .glass-bubble-main {
+      width: 280px;
+      height: 150px;
+      background: rgba(255, 255, 255, 0.22);
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      border-radius: 28px 28px 28px 8px;
+      box-shadow: 0 20px 45px rgba(0, 15, 60, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 24px 28px;
+      gap: 14px;
+    }
+
+    .placeholder-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .p-line-1 {
+      height: 10px;
+      width: 85%;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 9999px;
+    }
+    .p-line-2 {
+      height: 10px;
+      width: 60%;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 9999px;
+    }
+
+    .star-row {
+      display: flex;
+      gap: 6px;
+    }
+    .star-icon {
+      width: 20px;
+      height: 20px;
+      fill: #ffb800;
+      filter: drop-shadow(0 2px 8px rgba(255, 184, 0, 0.5));
+    }
+
+    /* Second Floating Bubble (Behind Left) */
+    .glass-bubble-left {
+      position: absolute;
+      top: 15px;
+      left: 10px;
+      width: 160px;
+      height: 90px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 20px 20px 6px 20px;
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 16px;
+      gap: 8px;
+      transform: rotate(-6deg);
+    }
+
+    /* Floating Heart Reaction Pill */
+    .reaction-pill {
+      position: absolute;
+      bottom: 25px;
+      right: 25px;
+      background: #ffffff;
+      border-radius: 9999px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+      z-index: 10;
+      transform: rotate(4deg);
+    }
+    .heart-icon {
+      width: 22px;
+      height: 22px;
+      fill: #ef4444;
+      filter: drop-shadow(0 2px 6px rgba(239, 68, 68, 0.4));
+    }
+    .reaction-bar {
+      width: 32px;
+      height: 8px;
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+
+    /* Small Rating Badge */
+    .mini-rating-badge {
+      position: absolute;
+      top: 25px;
+      right: 35px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 14px;
+      padding: 8px 14px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transform: rotate(8deg);
+    }
+    .rating-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-top"></div>
+  <div class="glow-bottom"></div>
+
+  <div class="scene-container">
+    <!-- Back Bubble -->
+    <div class="glass-bubble-left">
+      <div class="star-row">
+        <svg class="star-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <svg class="star-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <svg class="star-icon" style="width: 14px; height: 14px;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      </div>
+      <div style="height: 6px; width: 70%; background: rgba(255,255,255,0.6); border-radius: 4px;"></div>
+    </div>
+
+    <!-- Main Central Bubble -->
+    <div class="glass-bubble-main">
+      <div class="star-row">
+        <svg class="star-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <svg class="star-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <svg class="star-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <svg class="star-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        <svg class="star-icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      </div>
+      <div class="placeholder-lines">
+        <div class="p-line-1"></div>
+        <div class="p-line-2"></div>
+      </div>
+    </div>
+
+    <!-- Small Rating Badge -->
+    <div class="mini-rating-badge">
+      <div class="rating-dot"></div>
+      <svg class="star-icon" style="width: 16px; height: 16px;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      <div style="width: 24px; height: 6px; background: #64748b; border-radius: 4px;"></div>
+    </div>
+
+    <!-- Reaction Pill -->
+    <div class="reaction-pill">
+      <svg class="heart-icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+      <div class="reaction-bar"></div>
+    </div>
+  </div>
+</body>
+</html>
